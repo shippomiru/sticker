@@ -183,12 +183,23 @@ npm run dev
 - ✅ 本地数据存储（JSON文件）
 - ✅ 数据同步机制
 - ✅ SEO优化（robots.txt、sitemap.xml）
+- ✅ Cloudflare R2图片CDN集成（上传脚本与公共访问设置）
+- ✅ Cloudflare Pages部署配置
 
 待完成或确认的部分：
-- ❓ Cloudflare Pages部署
-- ❓ Cloudflare R2图片CDN集成
 - ❓ Supabase数据库集成
 - ❓ GitHub Actions自动化工作流
+- ❓ 自定义域名配置
+- ❓ 监控与分析系统集成
+
+## 部署信息
+
+当前部署状态：
+- 网站已部署到Cloudflare Pages：https://sticker.pages.dev
+- 图片资源存储在Cloudflare R2 CDN
+- 使用集中式JSON数据管理，数据文件也纳入版本控制
+
+访问[DEPLOYMENT.md](./DEPLOYMENT.md)文件获取完整的部署指南。
 
 ## 许可协议
 
