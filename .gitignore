@@ -10,7 +10,9 @@ project/public/images/
 *.png
 *.jpg
 *.jpeg
-api/data/
+# 允许images.json文件
+api/data/*
+!api/data/images.json
 # 注释掉此行，允许提交images.json文件
 # project/src/data/images.json
 missing_originals.log
