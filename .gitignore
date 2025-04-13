@@ -11,7 +11,8 @@ project/public/images/
 *.jpg
 *.jpeg
 api/data/
-project/src/data/images.json
+# 注释掉此行，允许提交images.json文件
+# project/src/data/images.json
 missing_originals.log
 
 # 忽略日志和临时文件
