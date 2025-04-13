@@ -31,7 +31,7 @@ interface ImageData {
  * @returns {boolean} - 是否成功生成
  */
 export async function generateSitemap(
-  domain: string = 'https://free-png.example.com',
+  domain: string = process.env.VITE_SITE_URL || 'https://free-png.example.com',
   sourceDataPath: string = '../src/data/images.json',
   outputPath: string = '../public/sitemap.xml'
 ): Promise<boolean> {
@@ -40,6 +40,8 @@ export async function generateSitemap(
     if (domain.endsWith('/')) {
       domain = domain.slice(0, -1);
     }
+
+    console.log(`使用域名 ${domain} 生成站点地图`);
 
     // 读取图片数据
     const jsonPath = path.resolve(sourceDataPath);
