@@ -8,7 +8,9 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "sync-data": "npx tsx src/utils/dataSync.ts"
+    "sync-data": "npx tsx src/utils/dataSync.ts",
+    "generate-sitemap": "npx tsx src/utils/sitemapGenerator.ts",
+    "prebuild": "npm run sync-data && npm run generate-sitemap"
   },
   "dependencies": {
     "i18next": "^23.10.1",

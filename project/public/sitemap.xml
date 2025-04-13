@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <!-- 主页 -->
+  <url>
+    <loc>https://free-png.example.com/</loc>
+    <lastmod>2025-04-13</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+  
+  <!-- 关于页面 -->
+  <url>
+    <loc>https://free-png.example.com/about</loc>
+    <lastmod>2025-04-13</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  
+  <!-- 图片详情页面 - 由系统自动生成 -->
+  <!-- 飞机图片 -->
+  <url>
+    <loc>https://free-png.example.com/a-large-passenger-jet-flying-in-the-sky</loc>
+    <lastmod>2025-04-13</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  
+  <!-- 枪支图片 -->
+  <url>
+    <loc>https://free-png.example.com/a-revolver-gun-on-a-wooden-table</loc>
+    <lastmod>2025-04-13</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  
+  <!-- 花卉图片 -->
+  <url>
+    <loc>https://free-png.example.com/a-close-up-of-a-flower-with-a-black-background</loc>
+    <lastmod>2025-04-13</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  
+  <!-- 狗狗图片 -->
+  <url>
+    <loc>https://free-png.example.com/a-small-puppy-is-running-in-the-woods</loc>
+    <lastmod>2025-04-13</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  
+  <!-- 南瓜图片 -->
+  <url>
+    <loc>https://free-png.example.com/a-small-pumpkin-sitting-on-a-table</loc>
+    <lastmod>2025-04-13</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  
+  <!-- 猫咪图片 -->
+  <url>
+    <loc>https://free-png.example.com/a-cat-sitting-on-a-white-bench</loc>
+    <lastmod>2025-04-13</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  
+  <!-- 相机图片 -->
+  <url>
+    <loc>https://free-png.example.com/a-camera-with-a-nik-lens-attached-to-it</loc>
+    <lastmod>2025-04-13</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  
+  <!-- 苹果图片 -->
+  <url>
+    <loc>https://free-png.example.com/a-bowl-of-apples-and-two-apples-on-a-table</loc>
+    <lastmod>2025-04-13</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  
+  <!-- 其他小狗图片 -->
+  <url>
+    <loc>https://free-png.example.com/a-small-dog-sitting-on-a-orange-background</loc>
+    <lastmod>2025-04-13</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  
+  <!-- 另一个飞机图片 -->
+  <url>
+    <loc>https://free-png.example.com/a-large-white-airplane-flying-through-a-cloudy-sky</loc>
+    <lastmod>2025-04-13</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  
+  <!-- 圣诞树图片 -->
+  <url>
+    <loc>https://free-png.example.com/a-small-christmas-tree-with-ornaments-and-decorations</loc>
+    <lastmod>2025-04-13</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  
+  <!-- 类别标签页（按标签筛选） -->
+  <url>
+    <loc>https://free-png.example.com/?tag=airplane</loc>
+    <lastmod>2025-04-13</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://free-png.example.com/?tag=gun</loc>
+    <lastmod>2025-04-13</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://free-png.example.com/?tag=flower</loc>
+    <lastmod>2025-04-13</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://free-png.example.com/?tag=dog</loc>
+    <lastmod>2025-04-13</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://free-png.example.com/?tag=pumpkin</loc>
+    <lastmod>2025-04-13</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://free-png.example.com/?tag=cat</loc>
+    <lastmod>2025-04-13</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://free-png.example.com/?tag=camera</loc>
+    <lastmod>2025-04-13</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://free-png.example.com/?tag=apple</loc>
+    <lastmod>2025-04-13</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://free-png.example.com/?tag=christmas</loc>
+    <lastmod>2025-04-13</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+</urlset> 

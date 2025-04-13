@@ -1,0 +1,13 @@
+# robots.txt for Free-PNG website
+
+User-agent: *
+Allow: /
+
+# 允许所有搜索引擎访问整个网站
+Disallow:
+
+# Sitemap文件位置
+Sitemap: https://free-png.example.com/sitemap.xml
+
+# 爬取延迟设置（秒）
+Crawl-delay: 10 
