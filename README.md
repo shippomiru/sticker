@@ -182,13 +182,13 @@ npm run dev
 - ✅ 基本的前端功能（浏览、搜索、下载、双语支持）
 - ✅ 本地数据存储（JSON文件）
 - ✅ 数据同步机制
+- ✅ SEO优化（robots.txt、sitemap.xml）
 
 待完成或确认的部分：
 - ❓ Cloudflare Pages部署
 - ❓ Cloudflare R2图片CDN集成
 - ❓ Supabase数据库集成
 - ❓ GitHub Actions自动化工作流
-- ❓ SEO优化（robots.txt、sitemap.xml）
 
 ## 许可协议
 
