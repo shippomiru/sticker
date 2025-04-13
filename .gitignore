@@ -1,0 +1,42 @@
+# 忽略处理后的图片
+unsplash-images/
+results*/
+temp-*/
+test/api/photos/
+api/photos/
+project/public/images/
+
+# 忽略项目生成的数据文件
+*.png
+*.jpg
+*.jpeg
+api/data/
+project/src/data/images.json
+missing_originals.log
+
+# 忽略日志和临时文件
+*.log
+.DS_Store
+
+# 忽略node_modules
+**/node_modules/
+**/dist/
+**/.vite/
+
+# 忽略测试和存档代码
+test/api/archive/
+test/api/backup/
+
+# 忽略缓存文件
+**/__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+
+# 环境文件
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
