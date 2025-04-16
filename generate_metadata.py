@@ -345,7 +345,7 @@ def classify_image_to_predefined_tags(caption, extracted_noun=None):
     predefined_tags = [
         "christmas", "flower", "book", "dog", "car", "cat", "pumpkin", 
         "apple", "airplane", "birthday", "crown", "gun", "baby", 
-        "camera", "money", "others"
+        "camera", "money", "bird", "others"
     ]
     
     # 同义词映射，帮助匹配更多变体
@@ -361,7 +361,8 @@ def classify_image_to_predefined_tags(caption, extracted_noun=None):
         "gun": ["pistol", "rifle", "firearm", "revolver", "weapon"],
         "money": ["cash", "currency", "dollars", "bills", "coins"],
         "christmas": ["xmas", "holiday", "santa", "december"],
-        "crown": ["tiara", "diadem", "coronet", "royal"]
+        "crown": ["tiara", "diadem", "coronet", "royal"],
+        "bird": ["sparrow", "parrot", "avian", "wing", "feather"]
     }
     
     # 将描述转为小写便于匹配
@@ -396,10 +397,13 @@ def classify_image_to_predefined_tags(caption, extracted_noun=None):
     
     # 4. 如果仍未匹配到标签，使用语义相似度检测
     if not matched_tags:
+        # 先检查是否是鸟类图片（避免将鸟错误分类为飞机）
+        if "bird" in caption_lower or any(word in caption_lower for word in ["wing", "feather", "nest", "beak"]):
+            matched_tags.append("bird")
         # 简单语义规则 - 基于关键词
-        if any(word in caption_lower for word in ["vehicle", "driving", "road"]):
+        elif any(word in caption_lower for word in ["vehicle", "driving", "road"]):
             matched_tags.append("car")
-        elif any(word in caption_lower for word in ["flying", "sky", "airport"]):
+        elif any(word in caption_lower for word in ["flying", "sky", "airport"]) and not "bird" in caption_lower:
             matched_tags.append("airplane")
         elif any(word in caption_lower for word in ["reading", "pages", "studying"]):
             matched_tags.append("book")
