@@ -604,13 +604,11 @@ def upload_to_r2(batch_date):
         logger.error(f"上传到R2时出错: {str(e)}")
         return False, {"error": str(e)}
 
-def copy_to_public(batch_date, compress_after_copy=False):
+def copy_to_public(batch_date):
     """将批次图片复制到public/images目录
     
     Args:
         batch_date: 批次日期
-        compress_after_copy: 复制后是否压缩public目录中的图片
-                            (通常不需要，因为批次图片已在工作流中压缩过)
         
     Returns:
         tuple: (成功状态, 详细信息)
@@ -657,30 +655,6 @@ def copy_to_public(batch_date, compress_after_copy=False):
         # 记录结果
         logger.info(f"复制完成! 新复制: {copied_count}, 跳过: {skipped_count}")
         
-        # 如果需要压缩public目录中的图片(通常不需要，因为批次图片已在工作流中压缩过)
-        if compress_after_copy:
-            logger.info("开始压缩public目录中的PNG图片...")
-            logger.warning("注意：通常不需要此步骤，因为批次图片已在'compressed'阶段压缩过")
-            
-            # 调用compress_public_images.py脚本
-            cmd = ["python3", "compress_public_images.py"]
-            logger.info(f"执行命令: {' '.join(cmd)}")
-            
-            process = subprocess.Popen(
-                cmd, 
-                stdout=subprocess.PIPE, 
-                stderr=subprocess.PIPE,
-                universal_newlines=True
-            )
-            
-            # 实时输出处理日志
-            stdout, stderr = process.communicate()
-            
-            if process.returncode != 0:
-                logger.error(f"压缩public目录PNG图片失败: {stderr}")
-            else:
-                logger.info("成功压缩public目录中的PNG图片")
-        
         return True, {
             "status": "已完成",
             "copied_count": copied_count,
@@ -717,7 +691,7 @@ def publish_to_website(batch_date):
     try:
         # 0. 首先确保图片复制到public目录 (不需要再次压缩，因为批次图片已在compressed阶段压缩过)
         logger.info("确保批次图片已复制到public目录...")
-        copy_success, copy_details = copy_to_public(batch_date, compress_after_copy=False)
+        copy_success, copy_details = copy_to_public(batch_date)
         if not copy_success:
             logger.error(f"复制图片到public目录失败: {copy_details.get('error', '')}")
             return False, {"error": f"复制图片到public目录失败: {copy_details.get('error', '')}"}
@@ -913,7 +887,6 @@ def main():
     # 复制到public目录命令 - 新增
     copy_parser = subparsers.add_parser('copy-to-public', help='将批次图片复制到public/images目录')
     copy_parser.add_argument('--batch', required=True, help='批次日期 (YYYYMMDD 格式)')
-    copy_parser.add_argument('--compress', action='store_true', help='复制后压缩public目录中的图片(通常不需要，因为批次图片已在compressed阶段压缩过)')
     
     # 上传到 R2 命令
     upload_parser = subparsers.add_parser('upload-r2', help='上传批次图片和元数据到 R2 存储')
@@ -1009,17 +982,11 @@ def main():
     
     elif args.command == 'copy-to-public':
         # 复制图片到public目录
-        success, details = copy_to_public(batch_date, args.compress)
+        success, details = copy_to_public(batch_date)
         
         if success:
             print(f"成功将批次 {batch_date} 图片复制到public目录")
             print(f"新复制: {details.get('copied_count', 0)}, 跳过: {details.get('skipped_count', 0)}")
-            
-            # 如果指定了压缩选项，压缩public目录中的图片
-            if args.compress:
-                print("\n开始压缩public目录中的PNG图片...")
-                cmd = ["python3", "compress_public_images.py"]
-                subprocess.run(cmd)
         else:
             print(f"复制到public目录失败: {details.get('error', '')}")
     
