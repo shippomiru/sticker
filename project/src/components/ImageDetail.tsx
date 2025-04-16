@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowDown, X } from 'lucide-react';
+import { ArrowDown, X, Check } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import images from '../data/images.json';
+import { trackImageView, trackStyleSelection, trackDownload } from '../utils/analytics';
 
 type ImageStyle = 'transparent' | 'outlined';
 
@@ -31,6 +32,10 @@ export function ImageDetail({ onClose }: ImageDetailProps) {
     return null;
   }
 
+  useEffect(() => {
+    trackImageView(image.id);
+  }, [image, navigate]);
+
   const getImageUrl = (style: ImageStyle) => {
     switch (style) {
       case 'outlined':
@@ -49,9 +54,17 @@ export function ImageDetail({ onClose }: ImageDetailProps) {
 
   const handleDownload = async (e: React.MouseEvent) => {
     e.preventDefault();
-    const url = getImageUrl(selectedStyle);
+    
     try {
-      const response = await fetch(url);
+      if (!image) return;
+      
+      const downloadUrl = selectedStyle === 'transparent' 
+        ? image.png_url 
+        : image.sticker_url;
+      
+      trackDownload(image.id, selectedStyle);
+      
+      const response = await fetch(downloadUrl);
       const blob = await response.blob();
       const blobUrl = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -62,7 +75,7 @@ export function ImageDetail({ onClose }: ImageDetailProps) {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(blobUrl);
     } catch (error) {
-      console.error('下载失败:', error);
+      console.error('Download failed:', error);
     }
   };
 
@@ -141,7 +154,12 @@ export function ImageDetail({ onClose }: ImageDetailProps) {
           <div className="p-6 lg:p-10 space-y-6 bg-white">
             <div className="grid grid-cols-2 gap-3">
               <button
-                onClick={() => setSelectedStyle('transparent')}
+                onClick={() => {
+                  setSelectedStyle('transparent');
+                  if (image) {
+                    trackStyleSelection(image.id, 'transparent');
+                  }
+                }}
                 className={`px-4 py-2.5 text-sm font-medium rounded-xl transition-all duration-300 ${
                   selectedStyle === 'transparent'
                     ? 'bg-blue-600 text-white shadow-sm'
@@ -151,7 +169,12 @@ export function ImageDetail({ onClose }: ImageDetailProps) {
                 {t('transparentBackground')}
               </button>
               <button
-                onClick={() => setSelectedStyle('outlined')}
+                onClick={() => {
+                  setSelectedStyle('outlined');
+                  if (image) {
+                    trackStyleSelection(image.id, 'outlined');
+                  }
+                }}
                 className={`px-4 py-2.5 text-sm font-medium rounded-xl transition-all duration-300 ${
                   selectedStyle === 'outlined'
                     ? 'bg-blue-600 text-white shadow-sm'

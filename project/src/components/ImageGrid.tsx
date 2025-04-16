@@ -4,6 +4,7 @@ import { ArrowDown, Tags, ChevronDown } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import images from '../data/images.json';
 import { useNavigate } from 'react-router-dom';
+import { trackTagClick, trackDownload } from '../utils/analytics';
 
 interface ImageGridProps {
   searchTerm: string;
@@ -74,24 +75,50 @@ export default function ImageGrid({ searchTerm = '', selectedTags = [], onTagsCh
 
   const handleDownload = async (url: string, e: React.MouseEvent) => {
     e.preventDefault();
+    e.stopPropagation(); // 阻止事件冒泡，防止触发Link跳转
+    
     try {
+      console.log('开始下载图片:', url);
+      
+      // 找到对应的图片对象，以获取ID
+      const normalizedUrl = url.includes('/images/') ? url : fixImageUrl(url);
+      const imageObj = images.find(img => 
+        fixImageUrl(img.png_url) === normalizedUrl || 
+        img.png_url === normalizedUrl || 
+        img.png_url === url);
+      
+      if (imageObj) {
+        // 记录下载事件
+        trackDownload(imageObj.id, url.includes('outlined') ? 'outlined' : 'transparent');
+        console.log('找到匹配图片:', imageObj.caption);
+      } else {
+        console.error('未找到匹配图片对象');
+      }
+      
       const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const blob = await response.blob();
       const blobUrl = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = blobUrl;
       
-      // 找到对应的图片对象，以获取 caption
-      const imageObj = images.find(img => img.png_url === url || fixImageUrl(img.png_url) === url);
-      const fileName = imageObj ? `${imageObj.caption}-transparent.png` : 'image.png';
+      // 生成文件名
+      const fileName = imageObj 
+        ? `${imageObj.caption}-transparent.png` 
+        : url.split('/').pop() || 'image.png';
       
       link.download = fileName;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(blobUrl);
+      console.log('下载完成:', fileName);
     } catch (error) {
-      console.error('Download failed:', error);
+      console.error('下载失败:', error);
+      alert('下载图片失败，请稍后重试');
     }
   };
 
@@ -106,6 +133,9 @@ export default function ImageGrid({ searchTerm = '', selectedTags = [], onTagsCh
   });
 
   const toggleTag = (tag: string) => {
+    // 记录标签点击
+    trackTagClick(tag);
+    
     // 重置为第一页
     setCurrentPage(1);
     
@@ -175,6 +205,8 @@ export default function ImageGrid({ searchTerm = '', selectedTags = [], onTagsCh
                   <button 
                     className="p-3 bg-white/90 backdrop-blur rounded-xl hover:bg-white transition-all duration-300 shadow-lg transform translate-y-2 group-hover:translate-y-0 group-hover:scale-105"
                     onClick={(e) => handleDownload(image.png_url, e)}
+                    aria-label="下载图片"
+                    type="button"
                   >
                     <ArrowDown className="h-5 w-5 text-gray-900" />
                   </button>
