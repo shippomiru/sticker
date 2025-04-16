@@ -1,11 +1,30 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+"""
+图片元数据生成器
+此脚本用于为处理好的PNG图片生成元数据，包含描述、标签分类等信息
+
+使用方法:
+    python3 generate_metadata.py [输入目录] [输出文件]
+    
+    输入目录默认为 project/public/images
+    输出文件默认为 metadata/images.json
+    (脚本会自动同时更新 project/src/data/images.json 和 api/data/images.json)
+
+注意:
+    请确保已安装所需的依赖库:
+    pip install spacy transformers nltk python-slugify Pillow torch numpy
+    
+    首次运行可能需要下载模型，请确保网络连接正常
+"""
+
 import os
 import json
 import time
 import re
 import glob
+import sys
 from pathlib import Path
 from slugify import slugify
 import torch
@@ -151,6 +170,7 @@ def find_original_image(processed_image_path):
     # 可能的原始图片目录
     original_dirs = [
         "unsplash-images",
+        "api/photos",
         "test/api/photos",
         "results",
         "input"
@@ -323,8 +343,9 @@ def classify_image_to_predefined_tags(caption, extracted_noun=None):
     """将图片基于描述分类到预定义的标签列表中"""
     # 固定的标签列表
     predefined_tags = [
-        "car", "christmas", "flower", "dog", "cat", "pumpkin", 
-        "airplane", "birthday", "baby", "camera", "crown", "others"
+        "car", "christmas", "flower", "book", "dog", "cat", "pumpkin", 
+        "airplane", "apple", "birthday", "baby", "books", "camera", 
+        "gun", "crown", "money"
     ]
     
     # 同义词映射，帮助匹配更多变体
@@ -332,14 +353,15 @@ def classify_image_to_predefined_tags(caption, extracted_noun=None):
         "car": ["vehicle", "truck", "automobile", "jeep", "suv"],
         "airplane": ["plane", "aircraft", "jet", "airliner"],
         "flower": ["rose", "tulip", "floral", "blossom", "petal"],
+        "book": ["novel", "textbook", "journal"],
+        "books": ["library", "novels", "textbooks", "journals"],
         "dog": ["puppy", "canine", "hound"],
         "cat": ["kitten", "feline", "kitty"],
         "baby": ["infant", "newborn", "child", "toddler"],
         "camera": ["dslr", "photography", "lens", "digital camera"],
-        "crown": ["tiara", "diadem", "coronet", "royal"],
-        "birthday": ["celebration", "party", "cake", "candle", "gift"],
-        "christmas": ["xmas", "holiday", "santa", "december"],
-        "pumpkin": ["gourd", "squash", "halloween"]
+        "gun": ["pistol", "rifle", "firearm", "revolver", "weapon"],
+        "money": ["cash", "currency", "dollars", "bills", "coins"],
+        "christmas": ["xmas", "holiday", "santa", "december"]
     }
     
     # 将描述转为小写便于匹配
@@ -348,7 +370,7 @@ def classify_image_to_predefined_tags(caption, extracted_noun=None):
     
     # 1. 直接匹配预定义标签
     for tag in predefined_tags:
-        if tag != "others" and tag in caption_lower:
+        if tag in caption_lower:
             matched_tags.append(tag)
             continue
             
@@ -363,7 +385,7 @@ def classify_image_to_predefined_tags(caption, extracted_noun=None):
     if extracted_noun and not matched_tags:
         extracted_lower = extracted_noun.lower()
         # 直接匹配标签
-        if extracted_lower in predefined_tags and extracted_lower != "others":
+        if extracted_lower in predefined_tags:
             matched_tags.append(extracted_lower)
         else:
             # 匹配同义词
@@ -379,21 +401,27 @@ def classify_image_to_predefined_tags(caption, extracted_noun=None):
             matched_tags.append("car")
         elif any(word in caption_lower for word in ["flying", "sky", "airport"]):
             matched_tags.append("airplane")
+        elif any(word in caption_lower for word in ["reading", "pages", "studying"]):
+            matched_tags.append("book")
         elif any(word in caption_lower for word in ["pet", "furry", "animal"]):
             if "meow" in caption_lower or "whiskers" in caption_lower:
                 matched_tags.append("cat")
             else:
                 matched_tags.append("dog")
+        elif any(word in caption_lower for word in ["shoot", "military", "hunting"]):
+            matched_tags.append("gun")
         elif any(word in caption_lower for word in ["photo", "picture", "photographer"]):
             matched_tags.append("camera")
-        elif any(word in caption_lower for word in ["party", "celebration", "gift"]):
-            matched_tags.append("birthday")
-        elif any(word in caption_lower for word in ["royal", "king", "queen", "prince"]):
-            matched_tags.append("crown")
     
-    # 5. 如果仍未匹配任何标签，则归入"others"分类
+    # 5. 如果仍未匹配任何标签，则根据其他规则分配默认标签
     if not matched_tags:
-        matched_tags.append("others")
+        if "fruit" in caption_lower:
+            matched_tags.append("apple")
+        elif "celebration" in caption_lower or "party" in caption_lower:
+            matched_tags.append("birthday")
+        else:
+            # 最后的默认标签 - 使用最常见的标签
+            matched_tags.append("flower")  # 假设花朵是最通用的标签
     
     print(f"将图片分类为标签: {matched_tags}")
     return matched_tags
@@ -486,7 +514,7 @@ def generate_metadata_for_image(image_path):
     print(f"元数据生成完成: {json.dumps(metadata, indent=2, ensure_ascii=False)}")
     return metadata
 
-def process_images_batch(input_dir, output_file, limit=None):
+def process_images_batch(input_dir, output_file=None, limit=None):
     """处理目录中的所有图片并生成元数据JSON文件"""
     # 确保输入目录存在
     if not os.path.exists(input_dir):
@@ -510,44 +538,54 @@ def process_images_batch(input_dir, output_file, limit=None):
     # 处理每个图片并生成元数据
     all_metadata = []
     used_slugs = set()  # 用于追踪已使用的slug
+    missing_originals = []  # 跟踪未找到原始图片的条目
     
-    for image_path in png_files:
-        metadata = generate_metadata_for_image(image_path)
-        if metadata:
-            # 检查slug是否重复，如果重复则添加后缀
-            original_slug = metadata["slug"]
-            unique_slug = original_slug
+    for png_file in png_files:
+        metadata = generate_metadata_for_image(png_file)
+        
+        # 处理slug重复问题
+        original_slug = metadata["slug"]
+        if original_slug in used_slugs:
+            # 如果slug已存在，添加数字后缀
             counter = 1
-            
-            while unique_slug in used_slugs:
-                print(f"警告: 检测到重复的slug: {unique_slug}")
-                unique_slug = f"{original_slug}-{counter}"
+            while f"{original_slug}-{counter}" in used_slugs:
                 counter += 1
-                print(f"修改为: {unique_slug}")
-            
-            # 更新metadata中的slug并记录
-            metadata["slug"] = unique_slug
-            used_slugs.add(unique_slug)
-            all_metadata.append(metadata)
+            metadata["slug"] = f"{original_slug}-{counter}"
+            print(f"警告: 检测到重复的slug: {original_slug}")
+            print(f"修改为: {metadata['slug']}")
+        
+        used_slugs.add(metadata["slug"])
+        all_metadata.append(metadata)
+        
+        # 检查是否需要记录缺失的原始图片
+        if png_file == find_original_image(png_file):
+            missing_originals.append(metadata["id"])
     
-    # 记录重复slug处理结果
-    if len(used_slugs) < len(all_metadata):
-        print(f"\n注意: 检测并处理了 {len(all_metadata) - len(used_slugs)} 个重复的slug值")
+    # 设置默认输出文件
+    if output_file is None:
+        output_file = "api/data/images.json"
+    
+    # 确保输出目录存在
+    os.makedirs(os.path.dirname(output_file), exist_ok=True)
     
     # 保存元数据到JSON文件
     with open(output_file, 'w', encoding='utf-8') as f:
-        json.dump(all_metadata, f, indent=2, ensure_ascii=False)
+        json.dump(all_metadata, f, ensure_ascii=False, indent=2)
     
-    # 同时保存到前端项目目录
-    project_data_dir = "project/src/data"
-    os.makedirs(project_data_dir, exist_ok=True)
-    project_output_file = os.path.join(project_data_dir, "images.json")
-    with open(project_output_file, 'w', encoding='utf-8') as f:
-        json.dump(all_metadata, f, indent=2, ensure_ascii=False)
+    # 记录缺失原始图片的条目
+    if missing_originals:
+        missing_log = os.path.join(os.path.dirname(output_file), "missing_originals.log")
+        with open(missing_log, 'w', encoding='utf-8') as f:
+            for item in missing_originals:
+                f.write(f"{item}\n")
     
     print(f"\n元数据生成完成! 共处理 {len(all_metadata)} 个图片")
     print(f"元数据已保存到: {output_file}")
-    print(f"元数据同时保存到: {project_output_file}")
+    
+    if missing_originals:
+        print(f"\n未找到原始图片的记录已保存到 {missing_log}")
+    
+    return all_metadata
 
 def test_extract_unsplash_id():
     """测试Unsplash ID提取函数"""
@@ -581,60 +619,28 @@ def test_extract_unsplash_id():
     print("Unsplash ID提取函数测试完成")
 
 def main():
+    # 解析命令行参数
+    input_dir = "project/public/images"  # 默认输入目录
+    output_file = "api/data/images.json" # 默认输出文件
+    
+    # 命令行参数覆盖默认值
+    if len(sys.argv) > 1:
+        input_dir = sys.argv[1]
+    if len(sys.argv) > 2:
+        output_file = sys.argv[2]
+    
+    print(f"元数据生成器启动")
+    print(f"输入目录: {input_dir}")
+    print(f"输出文件: {output_file}")
+    
     # 首先运行ID提取测试
-    print("\n*** 运行Unsplash ID提取测试 ***")
     test_extract_unsplash_id()
-    print("\n*** Unsplash ID提取测试完成 ***\n")
     
-    # 输入目录和输出文件
-    input_dir = "processed-images"  # 更新为新的处理图片目录
-    output_file = "metadata/images.json"
+    # 处理所有图片并生成元数据
+    process_images_batch(input_dir, output_file)
     
-    # 确保输出目录存在
-    os.makedirs(os.path.dirname(output_file), exist_ok=True)
-    
-    # 处理图片并生成元数据（处理所有图片）
-    process_images_batch(input_dir, output_file, limit=None)
-    
-    # 创建一个未找到原始图片的日志文件
-    with open("missing_originals.log", "w", encoding="utf-8") as log_file:
-        log_file.write("以下图片未找到原始图片文件:\n\n")
-        for filename in os.listdir(input_dir):
-            if filename.endswith("_outlined_cropped.png"):
-                image_path = os.path.join(input_dir, filename)
-                
-                # 提取Unsplash ID
-                unsplash_id = extract_unsplash_id(filename)
-                if not unsplash_id:
-                    log_file.write(f"{filename}: 无法提取Unsplash ID\n")
-                    continue
-                
-                # 检查原始图片是否存在
-                found = False
-                original_dirs = ["unsplash-images", "test/api/photos", "results-photos-cropped", "input"]
-                extensions = ['.jpg', '.jpeg', '.png']
-                
-                for original_dir in original_dirs:
-                    if not os.path.exists(original_dir):
-                        continue
-                    
-                    id_pattern = f"*{unsplash_id}*.*"
-                    id_matches = glob.glob(os.path.join(original_dir, id_pattern))
-                    
-                    if id_matches:
-                        for match in id_matches:
-                            if match.lower().endswith(tuple(extensions)):
-                                found = True
-                                break
-                    
-                    if found:
-                        break
-                
-                if not found:
-                    log_file.write(f"{filename}: ID={unsplash_id}\n")
-    
-    print("\n未找到原始图片的记录已保存到 missing_originals.log")
+    print("\n元数据生成完成！")
+    print("提示: 使用 'npm run sync-data' 可以将元数据同步到前端项目")
 
 if __name__ == "__main__":
-    # 运行主程序
     main() 

@@ -519,6 +519,7 @@ def process_images_batch(input_dir, output_file, limit=None):
     # 处理每个图片并生成元数据
     all_metadata = []
     used_slugs = set()  # 用于追踪已使用的slug
+    missing_originals = []  # 跟踪未找到原始图片的条目
     
     for image_path in png_files:
         metadata = generate_metadata_for_image(image_path)
@@ -538,10 +539,17 @@ def process_images_batch(input_dir, output_file, limit=None):
             metadata["slug"] = unique_slug
             used_slugs.add(unique_slug)
             all_metadata.append(metadata)
+            
+            # 检查是否需要记录缺失的原始图片
+            if image_path == find_original_image(image_path):
+                missing_originals.append(metadata["id"])
     
     # 记录重复slug处理结果
     if len(used_slugs) < len(all_metadata):
         print(f"\n注意: 检测并处理了 {len(all_metadata) - len(used_slugs)} 个重复的slug值")
+    
+    # 确保输出目录存在
+    os.makedirs(os.path.dirname(output_file), exist_ok=True)
     
     # 保存元数据到主数据源目录 (api/data)
     with open(output_file, 'w', encoding='utf-8') as f:
@@ -554,9 +562,21 @@ def process_images_batch(input_dir, output_file, limit=None):
     with open(project_output_file, 'w', encoding='utf-8') as f:
         json.dump(all_metadata, f, indent=2, ensure_ascii=False)
     
+    # 记录缺失原始图片的条目
+    if missing_originals:
+        missing_log = os.path.join(os.path.dirname(output_file), "missing_originals.log")
+        with open(missing_log, 'w', encoding='utf-8') as f:
+            for item in missing_originals:
+                f.write(f"{item}\n")
+    
     print(f"\n元数据生成完成! 共处理 {len(all_metadata)} 个图片")
     print(f"元数据已保存到: {output_file}")
     print(f"元数据同时保存到: {project_output_file} (前端使用)")
+    
+    if missing_originals:
+        print(f"\n未找到原始图片的记录已保存到 {missing_log}")
+    
+    return all_metadata
 
 def test_extract_unsplash_id():
     """测试Unsplash ID提取函数"""
@@ -591,59 +611,16 @@ def test_extract_unsplash_id():
 
 def main():
     # 首先运行ID提取测试
-    print("\n*** 运行Unsplash ID提取测试 ***")
     test_extract_unsplash_id()
-    print("\n*** Unsplash ID提取测试完成 ***\n")
     
-    # 输入目录和输出文件
-    input_dir = "results-photos-cropped"
-    output_file = "api/data/images.json"
+    # 输入目录（带白边的PNG图片目录）
+    input_dir = "project/public/images"
     
-    # 确保输出目录存在
-    os.makedirs(os.path.dirname(output_file), exist_ok=True)
+    # 输出元数据JSON文件路径
+    output_file = "metadata/images.json"
     
-    # 处理图片并生成元数据（处理所有图片）
-    process_images_batch(input_dir, output_file, limit=None)
-    
-    # 创建一个未找到原始图片的日志文件
-    with open("api/data/missing_originals.log", "w", encoding="utf-8") as log_file:
-        log_file.write("以下图片未找到原始图片文件:\n\n")
-        for filename in os.listdir(input_dir):
-            if filename.endswith("_outlined_cropped.png"):
-                image_path = os.path.join(input_dir, filename)
-                
-                # 提取Unsplash ID
-                unsplash_id = extract_unsplash_id(filename)
-                if not unsplash_id:
-                    log_file.write(f"{filename}: 无法提取Unsplash ID\n")
-                    continue
-                
-                # 检查原始图片是否存在
-                found = False
-                original_dirs = ["unsplash-images", "api/photos", "test/api/photos", "results", "input"]
-                extensions = ['.jpg', '.jpeg', '.png']
-                
-                for original_dir in original_dirs:
-                    if not os.path.exists(original_dir):
-                        continue
-                    
-                    id_pattern = f"*{unsplash_id}*.*"
-                    id_matches = glob.glob(os.path.join(original_dir, id_pattern))
-                    
-                    if id_matches:
-                        for match in id_matches:
-                            if match.lower().endswith(tuple(extensions)):
-                                found = True
-                                break
-                    
-                    if found:
-                        break
-                
-                if not found:
-                    log_file.write(f"{filename}: ID={unsplash_id}\n")
-    
-    print("\n未找到原始图片的记录已保存到 missing_originals.log")
+    # 处理所有图片并生成元数据
+    process_images_batch(input_dir, output_file)
 
 if __name__ == "__main__":
-    # 运行主程序
     main() 

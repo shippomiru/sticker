@@ -207,9 +207,10 @@ def process_image(jpg_file, output_dir, temp_dir, outline_size=40, edge_buffer=3
         
         # 定义临时文件和输出文件路径
         transparent_png = os.path.join(temp_dir, f"{basename}_transparent.png")
-        cropped_png = os.path.join(temp_dir, f"{basename}_cropped.png")
-        cropped_final_png = os.path.join(output_dir, f"{basename}_cropped.png")  # 保存到输出目录的裁剪版本
-        outlined_png = os.path.join(output_dir, f"{basename}_final.png")
+        cropped_png = os.path.join(temp_dir, f"{basename}_cropped_temp.png")
+        # 最终输出文件 - 透明背景版和带白边版
+        cropped_final_png = os.path.join(output_dir, f"{basename}_cropped.png")
+        outlined_png = os.path.join(output_dir, f"{basename}_outlined_cropped.png")
         
         print(f"\n开始处理: {basename}")
         
@@ -238,18 +239,18 @@ def process_image(jpg_file, output_dir, temp_dir, outline_size=40, edge_buffer=3
         else:
             print(f"裁剪后的PNG已存在: {cropped_png}")
         
-        # 将裁剪后的图片复制到输出目录
+        # 将裁剪后的图片复制到输出目录 - 透明背景版
         if not os.path.exists(cropped_final_png):
-            print(f"保存抠图+裁剪版本到输出目录: {cropped_final_png}")
+            print(f"保存透明背景版本到输出目录: {cropped_final_png}")
             # 读取临时目录中的裁剪图片
             temp_cropped_img = Image.open(cropped_png)
             # 保存到输出目录
             temp_cropped_img.save(cropped_final_png)
-            print(f"抠图+裁剪版本已保存: {cropped_final_png}")
+            print(f"透明背景版本已保存: {cropped_final_png}")
         else:
-            print(f"抠图+裁剪版本已存在: {cropped_final_png}")
+            print(f"透明背景版本已存在: {cropped_final_png}")
         
-        # 步骤3: 添加平滑无间隙的白色描边
+        # 步骤3: 添加平滑无间隙的白色描边 - 带白边版
         if not os.path.exists(outlined_png):
             print("正在执行步骤3: 添加白边")
             success = create_smooth_no_gap_outline(
@@ -262,11 +263,11 @@ def process_image(jpg_file, output_dir, temp_dir, outline_size=40, edge_buffer=3
                 print(f"添加白边失败: {basename}")
                 return False
         else:
-            print(f"最终图像已存在: {outlined_png}")
+            print(f"带白边版本已存在: {outlined_png}")
         
         print(f"图片处理完成: {basename}")
-        print(f"- 抠图+裁剪版本: {cropped_final_png}")
-        print(f"- 抠图+裁剪+白边版本: {outlined_png}")
+        print(f"- 透明背景版本: {cropped_final_png}")
+        print(f"- 带白边版本: {outlined_png}")
         return True
     except Exception as e:
         print(f"处理图片过程中发生错误 {jpg_file}: {e}")
@@ -302,9 +303,9 @@ def process_images(input_dir, output_dir, temp_dir, outline_size=40, edge_buffer
 
 def main():
     # 输入、输出和临时目录
-    input_dir = "test/api/photos"  # JPG图片目录
-    temp_dir = "temp-results"      # 临时文件存储目录
-    output_dir = "results-final"   # 最终结果存储目录
+    input_dir = "unsplash-images"       # 原始JPG图片目录（修改为新的默认目录）
+    temp_dir = "temp-results"           # 临时文件存储目录
+    output_dir = "processed-images"     # 处理后的图片目录（替代results-photos-cropped）
     
     # 处理所有图片
     # 步骤顺序: 抠图 -> 裁剪 -> 加白边

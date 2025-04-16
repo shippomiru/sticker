@@ -29,14 +29,24 @@ export async function syncDataFromAPI(
 
     // 读取源目录中的images.json
     const sourcePath = path.resolve(sourceDir, 'images.json');
+    const targetPath = path.resolve(targetDir, 'images.json');
+    
+    // 检查源文件是否存在
     if (!fs.existsSync(sourcePath)) {
-      console.error(`源数据文件不存在: ${sourcePath}`);
-      return false;
+      console.warn(`源数据文件不存在: ${sourcePath}`);
+      
+      // 检查目标文件是否已经存在
+      if (fs.existsSync(targetPath)) {
+        console.log(`保留现有的目标文件: ${targetPath}`);
+        return true; // 如果目标文件已存在，则跳过同步
+      } else {
+        console.error(`无法同步数据，源文件和目标文件都不存在`);
+        return false;
+      }
     }
 
     // 读取数据
     const data = fs.readFileSync(sourcePath, 'utf-8');
-    const targetPath = path.resolve(targetDir, 'images.json');
 
     // 写入目标文件
     fs.writeFileSync(targetPath, data);

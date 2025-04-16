@@ -1,0 +1,743 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+Unsplash 图片处理工作流
+
+此脚本整合了从 Unsplash 获取图片到最终发布的完整流程：
+1. 从 Unsplash API 获取指定 ID 或关键词的图片
+2. 导入图片到批次并运行图像处理
+3. 提供人工验收环节
+4. 生成/更新元数据
+5. 压缩PNG图片以减小体积
+6. 上传到 R2 存储
+7. 更新网站数据
+
+使用方法:
+  python3 unsplash_workflow.py start --id ID1,ID2,... [--batch YYYYMMDD]
+  python3 unsplash_workflow.py start --query "search term" --count 5 [--batch YYYYMMDD]
+  python3 unsplash_workflow.py verify --batch YYYYMMDD
+  python3 unsplash_workflow.py publish --batch YYYYMMDD
+  python3 unsplash_workflow.py compress --batch YYYYMMDD [--method both|oxipng|pngquant] [--quality 80]
+  python3 unsplash_workflow.py upload-r2 --batch YYYYMMDD
+"""
+
+import os
+import sys
+import json
+import time
+import logging
+import argparse
+import subprocess
+import shutil
+from datetime import datetime
+
+# 导入项目中的其他模块
+import unsplash_importer
+from batch_manager import (
+    UNSPLASH_IMAGES_DIR, 
+    PROCESSED_IMAGES_DIR, 
+    TEMP_RESULTS_DIR,
+    METADATA_DIR,
+    ensure_dir_exists,
+    get_current_date,
+    create_batch,
+    get_batch_status
+)
+from png_optimizer import optimize_png
+
+# 配置日志
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler('unsplash_workflow.log')
+    ]
+)
+logger = logging.getLogger('unsplash_workflow')
+
+# 工作流状态文件
+WORKFLOW_STATE_DIR = os.path.join(METADATA_DIR, "workflow_states")
+ensure_dir_exists(WORKFLOW_STATE_DIR)
+
+# 工作流阶段定义
+WORKFLOW_STAGES = [
+    "imported",        # 图片已从Unsplash导入
+    "processed",       # 图片已处理（抠图、添加白边等）
+    "verified",        # 图片已通过人工验收
+    "metadata_added",  # 已添加元数据
+    "compressed",      # 已压缩PNG图片
+    "uploaded_r2",     # 已上传到R2
+    "published"        # 已发布到网站
+]
+
+def get_workflow_state_file(batch_date):
+    """获取工作流状态文件路径"""
+    return os.path.join(WORKFLOW_STATE_DIR, f"workflow_state_{batch_date}.json")
+
+def load_workflow_state(batch_date):
+    """加载工作流状态"""
+    state_file = get_workflow_state_file(batch_date)
+    
+    if os.path.exists(state_file):
+        try:
+            with open(state_file, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except json.JSONDecodeError:
+            logger.warning(f"工作流状态文件格式错误，创建新状态")
+    
+    # 初始化新的工作流状态
+    return {
+        "batch_date": batch_date,
+        "created_at": datetime.now().isoformat(),
+        "updated_at": datetime.now().isoformat(),
+        "current_stage": "",
+        "stages": {
+            stage: {
+                "completed": False,
+                "timestamp": None,
+                "details": {}
+            } for stage in WORKFLOW_STAGES
+        }
+    }
+
+def save_workflow_state(state):
+    """保存工作流状态"""
+    batch_date = state["batch_date"]
+    state["updated_at"] = datetime.now().isoformat()
+    
+    state_file = get_workflow_state_file(batch_date)
+    with open(state_file, 'w', encoding='utf-8') as f:
+        json.dump(state, f, indent=2, ensure_ascii=False)
+    
+    logger.info(f"工作流状态已保存到: {state_file}")
+
+def update_workflow_stage(state, stage, details=None):
+    """更新工作流状态
+    
+    Args:
+        state: 工作流状态对象
+        stage: 当前阶段名称
+        details: 阶段详细信息，默认为None
+        
+    Returns:
+        更新后的工作流状态对象
+    """
+    # 确保状态对象有效
+    if not state:
+        state = create_new_workflow_state()
+    
+    # 确保stages字段存在
+    if "stages" not in state:
+        state["stages"] = {}
+    
+    # 确保每个阶段都有对应的条目
+    for workflow_stage in WORKFLOW_STAGES:
+        if workflow_stage not in state["stages"]:
+            state["stages"][workflow_stage] = {
+                "completed": False,
+                "timestamp": None,
+                "details": None
+            }
+    
+    # 更新当前阶段状态
+    state["stages"][stage]["completed"] = True
+    state["stages"][stage]["timestamp"] = datetime.now().isoformat()
+    if details:
+        state["stages"][stage]["details"] = details
+    
+    # 设置当前阶段为最新完成的阶段
+    state["current_stage"] = stage
+    
+    # 保存状态
+    save_workflow_state(state)
+    
+    return state
+
+def get_next_stage(current_stage):
+    """获取下一个工作流阶段"""
+    if not current_stage:
+        return WORKFLOW_STAGES[0]
+    
+    try:
+        current_index = WORKFLOW_STAGES.index(current_stage)
+        if current_index < len(WORKFLOW_STAGES) - 1:
+            return WORKFLOW_STAGES[current_index + 1]
+    except ValueError:
+        pass
+    
+    return None
+
+def print_workflow_status(state):
+    """打印工作流状态"""
+    print(f"\n===== 批次 {state['batch_date']} 工作流状态 =====")
+    print(f"创建时间: {state['created_at']}")
+    print(f"当前阶段: {state['current_stage'] or '未开始'}")
+    
+    print("\n阶段完成情况:")
+    for stage in WORKFLOW_STAGES:
+        stage_info = state["stages"][stage]
+        status = "✓ 已完成" if stage_info["completed"] else "✗ 未完成"
+        timestamp = f" ({stage_info['timestamp']})" if stage_info["timestamp"] else ""
+        print(f"- {stage}: {status}{timestamp}")
+    
+    # 查看批次状态
+    print("\n批次详情:")
+    batch = get_batch_status(state["batch_date"])
+    if not batch:
+        print("未找到批次信息")
+    
+    # 显示下一步操作
+    next_stage = get_next_stage(state["current_stage"])
+    if next_stage:
+        print(f"\n下一步: {next_stage}")
+        print(f"运行命令: python3 {os.path.basename(__file__)} {next_stage} --batch {state['batch_date']}")
+    else:
+        print("\n所有阶段已完成!")
+    
+    print("\n" + "="*50)
+
+# 工作流处理函数
+def import_unsplash_images(batch_date, photo_ids=None, query=None, count=5):
+    """从Unsplash导入图片到批次
+    
+    Args:
+        batch_date: 批次日期
+        photo_ids: Unsplash图片ID列表
+        query: 搜索关键词
+        count: 搜索导入数量
+        
+    Returns:
+        tuple: (成功状态, 详细信息)
+    """
+    logger.info(f"开始从Unsplash导入图片到批次 {batch_date}...")
+    
+    # 确保批次存在
+    create_batch(batch_date)
+    
+    # 导入图片
+    try:
+        if photo_ids:
+            logger.info(f"通过ID导入图片: {', '.join(photo_ids)}")
+            imported_paths = unsplash_importer.import_to_batch(batch_date, photo_ids=photo_ids)
+        elif query:
+            logger.info(f"通过关键词导入图片: {query}, count={count}")
+            imported_paths = unsplash_importer.import_to_batch(batch_date, query=query, count=count)
+        else:
+            logger.error("未指定图片ID或搜索关键词")
+            return False, {"error": "未指定图片ID或搜索关键词"}
+        
+        # 检查导入结果
+        if not imported_paths:
+            logger.warning("没有新图片导入")
+            return False, {"warning": "没有新图片导入，可能图片已存在或搜索未找到结果"}
+        
+        # 获取批次状态
+        batch = get_batch_status(batch_date)
+        
+        # 返回结果
+        result = {
+            "imported_count": len(imported_paths),
+            "imported_paths": imported_paths,
+            "batch_status": {
+                "image_count": batch["image_count"] if batch else 0,
+                "processed_count": batch["processed_count"] if batch else 0
+            }
+        }
+        
+        logger.info(f"成功导入 {len(imported_paths)} 张图片到批次 {batch_date}")
+        return True, result
+        
+    except Exception as e:
+        logger.error(f"导入图片时出错: {str(e)}")
+        return False, {"error": str(e)}
+
+def process_images(batch_date):
+    """处理批次中的图片
+    
+    Args:
+        batch_date: 批次日期
+        
+    Returns:
+        tuple: (成功状态, 详细信息)
+    """
+    logger.info(f"开始处理批次 {batch_date} 中的图片...")
+    
+    # 检查批次是否存在
+    batch = get_batch_status(batch_date)
+    if not batch:
+        logger.error(f"批次 {batch_date} 不存在")
+        return False, {"error": f"批次 {batch_date} 不存在"}
+    
+    # 检查是否有图片需要处理
+    if batch["image_count"] == 0:
+        logger.warning(f"批次 {batch_date} 中没有图片")
+        return False, {"warning": "批次中没有图片"}
+    
+    # 检查是否已全部处理完成
+    if batch["processed_count"] >= batch["image_count"]:
+        logger.info(f"批次 {batch_date} 中的图片已全部处理完成")
+        return True, {"status": "已完成", "processed_count": batch["processed_count"]}
+    
+    # 调用图像处理脚本
+    try:
+        cmd = ["python3", "process_images.py", "--batch", batch_date]
+        logger.info(f"执行命令: {' '.join(cmd)}")
+        
+        process = subprocess.Popen(
+            cmd, 
+            stdout=subprocess.PIPE, 
+            stderr=subprocess.PIPE,
+            universal_newlines=True
+        )
+        
+        # 实时输出处理日志
+        stdout, stderr = process.communicate()
+        
+        if process.returncode != 0:
+            logger.error(f"处理图片失败: {stderr}")
+            return False, {"error": stderr}
+        
+        # 获取更新后的批次状态
+        updated_batch = get_batch_status(batch_date)
+        
+        # 返回结果
+        result = {
+            "processed_count": updated_batch["processed_count"],
+            "total_count": updated_batch["image_count"],
+            "output_dir": updated_batch["output_dir"]
+        }
+        
+        logger.info(f"成功处理批次 {batch_date} 中的图片，已处理 {updated_batch['processed_count']}/{updated_batch['image_count']} 张图片")
+        return True, result
+        
+    except Exception as e:
+        logger.error(f"处理图片时出错: {str(e)}")
+        return False, {"error": str(e)}
+
+def verify_images(batch_date):
+    """人工验收批次中的图片
+    
+    Args:
+        batch_date: 批次日期
+        
+    Returns:
+        tuple: (成功状态, 详细信息)
+    """
+    logger.info(f"开始人工验收批次 {batch_date} 中的图片...")
+    
+    # 检查批次是否存在
+    batch = get_batch_status(batch_date)
+    if not batch:
+        logger.error(f"批次 {batch_date} 不存在")
+        return False, {"error": f"批次 {batch_date} 不存在"}
+    
+    # 检查图片是否已处理
+    if batch["processed_count"] == 0:
+        logger.warning(f"批次 {batch_date} 中没有已处理的图片")
+        return False, {"warning": "批次中没有已处理的图片，请先处理图片"}
+    
+    # 处理未完成的情况
+    if batch["processed_count"] < batch["image_count"]:
+        logger.warning(f"批次 {batch_date} 中有 {batch['image_count'] - batch['processed_count']} 张图片尚未处理")
+        proceed = input(f"是否继续验收已处理的 {batch['processed_count']} 张图片？(y/n): ")
+        if proceed.lower() != 'y':
+            logger.info("验收已取消")
+            return False, {"status": "已取消"}
+    
+    # 展示图片并等待验收
+    output_dir = batch["output_dir"]
+    print(f"\n请验收批次 {batch_date} 中的图片")
+    print(f"图片位置: {output_dir}")
+    print("目录中包含以下处理结果:")
+    print("1. 原始图片: *.jpg")
+    print("2. 透明背景图片: *_transparent.png")
+    print("3. 白边贴纸风格图片: *_cropped.png")
+    
+    # 提示用户打开文件浏览器查看图片
+    print("\n请在文件浏览器中查看图片并验收")
+    open_explorer = input("是否打开文件浏览器查看图片？(y/n): ")
+    if open_explorer.lower() == 'y':
+        try:
+            # 根据操作系统打开文件浏览器
+            if sys.platform == 'darwin':  # macOS
+                subprocess.run(['open', output_dir])
+            elif sys.platform == 'win32':  # Windows
+                subprocess.run(['explorer', output_dir])
+            else:  # Linux
+                subprocess.run(['xdg-open', output_dir])
+        except Exception as e:
+            logger.error(f"打开文件浏览器失败: {str(e)}")
+    
+    # 用户验收确认
+    confirm = input("\n请确认所有图片是否合格？(y/n): ")
+    if confirm.lower() != 'y':
+        logger.warning("验收未通过")
+        reason = input("请简要说明未通过原因: ")
+        return False, {"status": "未通过", "reason": reason}
+    
+    logger.info(f"批次 {batch_date} 中的图片验收通过")
+    return True, {"status": "已通过", "processed_count": batch["processed_count"]}
+
+def generate_metadata(batch_date):
+    """生成批次图片的元数据
+    
+    Args:
+        batch_date: 批次日期
+        
+    Returns:
+        tuple: (成功状态, 详细信息)
+    """
+    logger.info(f"开始生成批次 {batch_date} 图片的元数据...")
+    
+    # 检查批次是否存在并已验收
+    batch = get_batch_status(batch_date)
+    if not batch:
+        logger.error(f"批次 {batch_date} 不存在")
+        return False, {"error": f"批次 {batch_date} 不存在"}
+    
+    # 设置输入目录和输出文件
+    input_dir = batch["output_dir"]
+    metadata_output = os.path.join(METADATA_DIR, f"metadata_{batch_date}.json")
+    
+    # 调用元数据生成脚本
+    try:
+        # generate_metadata.py 脚本接受输入目录和输出文件作为位置参数
+        cmd = ["python3", "generate_metadata.py", input_dir, metadata_output]
+        logger.info(f"执行命令: {' '.join(cmd)}")
+        
+        process = subprocess.Popen(
+            cmd, 
+            stdout=subprocess.PIPE, 
+            stderr=subprocess.PIPE,
+            universal_newlines=True
+        )
+        
+        # 实时输出处理日志
+        stdout, stderr = process.communicate()
+        
+        if process.returncode != 0:
+            logger.error(f"生成元数据失败: {stderr}")
+            return False, {"error": stderr}
+        
+        logger.info(f"成功生成批次 {batch_date} 图片的元数据")
+        
+        # 检查元数据文件是否生成
+        if not os.path.exists(metadata_output):
+            # 检查是否生成在默认位置
+            default_output = "api/data/images.json"
+            if os.path.exists(default_output):
+                # 如果生成在默认位置，复制到预期位置
+                shutil.copy(default_output, metadata_output)
+                logger.info(f"已将元数据从 {default_output} 复制到 {metadata_output}")
+            else:
+                logger.warning(f"元数据文件未找到: {metadata_output} 或 {default_output}")
+                return False, {"warning": "元数据文件未生成"}
+        
+        # 读取生成的元数据数量
+        try:
+            with open(metadata_output, 'r', encoding='utf-8') as f:
+                metadata = json.load(f)
+                metadata_count = len(metadata) if isinstance(metadata, list) else 0
+        except:
+            try:
+                # 尝试从默认位置读取
+                with open("api/data/images.json", 'r', encoding='utf-8') as f:
+                    metadata = json.load(f)
+                    metadata_count = len(metadata) if isinstance(metadata, list) else 0
+            except:
+                metadata_count = 0
+        
+        return True, {
+            "status": "已完成",
+            "metadata_file": metadata_output,
+            "metadata_count": metadata_count
+        }
+        
+    except Exception as e:
+        logger.error(f"生成元数据时出错: {str(e)}")
+        return False, {"error": str(e)}
+
+def compress_png_images(batch_date, method="both", quality=80, oxipng_level=2):
+    """压缩批次中的PNG图片
+    
+    Args:
+        batch_date: 批次日期
+        method: 压缩方法，可选值为"oxipng"、"pngquant"或"both"，默认为"both"
+        quality: 压缩质量(0-100)，默认80
+        oxipng_level: oxipng压缩级别(0-6)，默认2
+        
+    Returns:
+        tuple: (成功状态, 详细信息)
+    """
+    logger.info(f"开始压缩批次 {batch_date} 中的PNG图片...")
+    
+    # 获取批次输出目录
+    batch_output_dir = os.path.join(PROCESSED_IMAGES_DIR, batch_date)
+    
+    # 检查批次输出目录是否存在
+    if not os.path.exists(batch_output_dir):
+        logger.error(f"批次输出目录不存在: {batch_output_dir}")
+        return False, {"error": f"批次输出目录不存在: {batch_output_dir}"}
+    
+    try:
+        # 调用PNG优化工具
+        logger.info(f"使用方法 '{method}' 压缩PNG图片，质量级别为 {quality}，oxipng级别为 {oxipng_level}")
+        
+        # 优化PNG图片
+        results = optimize_png(
+            batch_output_dir,
+            None,  # 覆盖原文件
+            method,
+            quality,
+            oxipng_level
+        )
+        
+        # 检查结果 - 包括是否所有文件都被跳过(已经压缩过)
+        if results["processed_files"] == 0 and results["skipped_files"] == 0:
+            logger.warning("没有PNG图片被处理")
+            return False, {"warning": "没有PNG图片被处理"}
+        
+        # 返回压缩结果，即使所有文件都已经最优化，也视为成功
+        compression_details = {
+            "processed_files": results["processed_files"],
+            "skipped_files": results["skipped_files"],
+            "original_size_mb": round(results["total_original_size"] / (1024 * 1024), 2),
+            "compressed_size_mb": round(results["total_new_size"] / (1024 * 1024), 2),
+            "compression_ratio": round(results["compression_ratio"], 2),
+            "processing_time": round(results["elapsed_time"], 2)
+        }
+        
+        # 如果有处理的文件，记录压缩比
+        if results["processed_files"] > 0:
+            logger.info(f"PNG压缩完成: 处理了 {results['processed_files']} 个文件，"
+                        f"压缩比 {results['compression_ratio']:.2f}%")
+        # 如果所有文件都已经优化，也视为成功
+        elif results["skipped_files"] > 0:
+            logger.info(f"PNG检查完成: {results['skipped_files']} 个文件已经是最优状态，无需进一步压缩")
+        
+        return True, compression_details
+    
+    except Exception as e:
+        logger.error(f"压缩PNG图片时出错: {str(e)}")
+        return False, {"error": str(e)}
+
+def upload_to_r2(batch_date):
+    """上传批次图片和元数据到 R2 存储
+    
+    Args:
+        batch_date: 批次日期
+        
+    Returns:
+        tuple: (成功状态, 详细信息)
+    """
+    logger.info(f"开始上传批次 {batch_date} 数据到 R2 存储...")
+    
+    # 检查批次是否存在
+    batch = get_batch_status(batch_date)
+    if not batch:
+        logger.error(f"批次 {batch_date} 不存在")
+        return False, {"error": f"批次 {batch_date} 不存在"}
+    
+    # 检查 R2 上传工具是否配置
+    # 此处应检查 Cloudflare R2 相关凭证是否设置
+    
+    # 模拟上传过程（实际项目中应替换为真实的上传逻辑）
+    print(f"\n上传批次 {batch_date} 数据到 R2 存储")
+    print("实际项目中，此处应调用 R2 上传工具")
+    
+    # TODO: 实现实际的 R2 上传逻辑
+    # 此处应使用 Cloudflare 提供的 API 或工具进行上传
+    
+    # 模拟上传成功
+    time.sleep(2)  # 模拟上传过程
+    logger.info(f"成功上传批次 {batch_date} 数据到 R2 存储")
+    
+    return True, {"status": "模拟成功", "note": "实际项目中需替换为真实上传逻辑"}
+
+def publish_to_website(batch_date):
+    """将批次数据发布到网站
+    
+    Args:
+        batch_date: 批次日期
+        
+    Returns:
+        tuple: (成功状态, 详细信息)
+    """
+    logger.info(f"开始将批次 {batch_date} 数据发布到网站...")
+    
+    # 检查批次是否存在
+    batch = get_batch_status(batch_date)
+    if not batch:
+        logger.error(f"批次 {batch_date} 不存在")
+        return False, {"error": f"批次 {batch_date} 不存在"}
+    
+    # 检查元数据是否生成
+    metadata_file = os.path.join(METADATA_DIR, f"metadata_{batch_date}.json")
+    if not os.path.exists(metadata_file):
+        logger.error(f"元数据文件未找到: {metadata_file}")
+        return False, {"error": "元数据文件未生成，请先生成元数据"}
+    
+    # 模拟网站数据更新过程（实际项目中应替换为真实的发布逻辑）
+    print(f"\n将批次 {batch_date} 数据发布到网站")
+    print("实际项目中，此处应执行网站数据更新脚本")
+    
+    # TODO: 实现实际的网站数据更新逻辑
+    # 例如：将新的元数据合并到主数据文件，同步到前端项目，触发网站重新部署等
+    
+    # 模拟发布成功
+    time.sleep(2)  # 模拟发布过程
+    logger.info(f"成功将批次 {batch_date} 数据发布到网站")
+    
+    return True, {"status": "模拟成功", "note": "实际项目中需替换为真实发布逻辑"}
+
+# 命令行处理
+def main():
+    """主函数"""
+    parser = argparse.ArgumentParser(description='Unsplash 图片处理工作流')
+    subparsers = parser.add_subparsers(dest='command', help='子命令')
+    
+    # 启动流程命令
+    start_parser = subparsers.add_parser('start', help='启动新的处理流程')
+    start_parser.add_argument('--id', help='Unsplash 图片 ID，多个用逗号分隔')
+    start_parser.add_argument('--query', help='搜索关键词')
+    start_parser.add_argument('--count', type=int, default=5, help='搜索导入数量 (默认: 5)')
+    start_parser.add_argument('--batch', help='批次日期 (YYYYMMDD 格式，默认为当前日期)')
+    start_parser.add_argument('--process', action='store_true', help='导入后自动处理图片')
+    
+    # 处理图片命令
+    process_parser = subparsers.add_parser('process', help='处理批次中的图片')
+    process_parser.add_argument('--batch', required=True, help='批次日期 (YYYYMMDD 格式)')
+    
+    # 验证图片命令
+    verify_parser = subparsers.add_parser('verify', help='人工验收批次中的图片')
+    verify_parser.add_argument('--batch', required=True, help='批次日期 (YYYYMMDD 格式)')
+    
+    # 生成元数据命令
+    metadata_parser = subparsers.add_parser('metadata', help='生成批次图片的元数据')
+    metadata_parser.add_argument('--batch', required=True, help='批次日期 (YYYYMMDD 格式)')
+    
+    # 压缩图片命令 - 新增
+    compress_parser = subparsers.add_parser('compress', help='压缩批次中的PNG图片')
+    compress_parser.add_argument('--batch', required=True, help='批次日期 (YYYYMMDD 格式)')
+    compress_parser.add_argument('--method', choices=['oxipng', 'pngquant', 'both'], default='both',
+                              help='压缩方法，默认为both')
+    compress_parser.add_argument('--quality', type=int, default=80, help='pngquant质量(0-100)，默认80')
+    compress_parser.add_argument('--oxipng-level', type=int, default=2, help='oxipng压缩级别(0-6)，默认2')
+    
+    # 上传到 R2 命令
+    upload_parser = subparsers.add_parser('upload-r2', help='上传批次图片和元数据到 R2 存储')
+    upload_parser.add_argument('--batch', required=True, help='批次日期 (YYYYMMDD 格式)')
+    
+    # 发布到网站命令
+    publish_parser = subparsers.add_parser('publish', help='将批次数据发布到网站')
+    publish_parser.add_argument('--batch', required=True, help='批次日期 (YYYYMMDD 格式)')
+    
+    # 查看状态命令
+    status_parser = subparsers.add_parser('status', help='查看工作流状态')
+    status_parser.add_argument('--batch', required=True, help='批次日期 (YYYYMMDD 格式)')
+    
+    # 解析命令行参数
+    args = parser.parse_args()
+    
+    # 如果没有提供命令，显示帮助
+    if not args.command:
+        parser.print_help()
+        return
+    
+    # 获取批次日期
+    batch_date = args.batch if hasattr(args, 'batch') and args.batch else get_current_date()
+    
+    # 加载工作流状态
+    state = load_workflow_state(batch_date)
+    
+    # 执行相应的命令
+    if args.command == 'start':
+        photo_ids = args.id.split(',') if args.id else None
+        
+        # 从 Unsplash 导入图片
+        success, details = import_unsplash_images(batch_date, photo_ids, args.query, args.count)
+        
+        if success:
+            # 更新工作流状态
+            update_workflow_stage(state, "imported", details)
+            
+            # 如果指定了自动处理，继续处理图片
+            if args.process:
+                success, details = process_images(batch_date)
+                if success:
+                    update_workflow_stage(state, "processed", details)
+            
+            # 显示工作流状态
+            print_workflow_status(state)
+        else:
+            print(f"导入失败: {details.get('error', '') or details.get('warning', '')}")
+    
+    elif args.command == 'process':
+        success, details = process_images(batch_date)
+        
+        if success:
+            update_workflow_stage(state, "processed", details)
+            print_workflow_status(state)
+        else:
+            print(f"处理失败: {details.get('error', '') or details.get('warning', '')}")
+    
+    elif args.command == 'verify':
+        success, details = verify_images(batch_date)
+        
+        if success:
+            update_workflow_stage(state, "verified", details)
+            print_workflow_status(state)
+        else:
+            if details.get('status') == '已取消':
+                print("验收已取消")
+            else:
+                print(f"验收未通过: {details.get('reason', '')}")
+    
+    elif args.command == 'metadata':
+        success, details = generate_metadata(batch_date)
+        
+        if success:
+            update_workflow_stage(state, "metadata_added", details)
+            print_workflow_status(state)
+        else:
+            print(f"生成元数据失败: {details.get('error', '') or details.get('warning', '')}")
+    
+    elif args.command == 'compress':
+        success, details = compress_png_images(
+            batch_date,
+            args.method,
+            args.quality,
+            args.oxipng_level
+        )
+        
+        if success:
+            update_workflow_stage(state, "compressed", details)
+            print_workflow_status(state)
+        else:
+            print(f"压缩PNG图片失败: {details.get('error', '') or details.get('warning', '')}")
+    
+    elif args.command == 'upload-r2':
+        success, details = upload_to_r2(batch_date)
+        
+        if success:
+            update_workflow_stage(state, "uploaded_r2", details)
+            print_workflow_status(state)
+        else:
+            print(f"上传到 R2 失败: {details.get('error', '') or details.get('warning', '')}")
+    
+    elif args.command == 'publish':
+        success, details = publish_to_website(batch_date)
+        
+        if success:
+            update_workflow_stage(state, "published", details)
+            print_workflow_status(state)
+        else:
+            print(f"发布到网站失败: {details.get('error', '') or details.get('warning', '')}")
+    
+    elif args.command == 'status':
+        print_workflow_status(state)
+
+if __name__ == "__main__":
+    main() 

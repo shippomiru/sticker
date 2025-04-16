@@ -15,7 +15,7 @@ export default function ImageGrid({ searchTerm = '', selectedTags = [], onTagsCh
   const { t } = useTranslation();
   const [displayedImages, setDisplayedImages] = useState<typeof images>([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const imagesPerPage = 12;
+  const imagesPerPage = 20; // 增加每页显示的图片数量
   const navigate = useNavigate();
 
   // 检查图片URL格式，确保所有URL都有/images/前缀
@@ -26,24 +26,32 @@ export default function ImageGrid({ searchTerm = '', selectedTags = [], onTagsCh
     return url;
   };
 
-  // 初始加载和图片修正
-  useEffect(() => {
-    // 修正图片URL
-    const fixedImages = images.map(img => ({
+  // 获取筛选后的图片列表
+  const getFilteredImages = () => {
+    return images.filter((img) => {
+      const matchesSearch = img.caption
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase());
+      const matchesTags =
+        selectedTags.length === 0 ||
+        selectedTags.some((tag) => img.tags.includes(tag));
+      return matchesSearch && matchesTags;
+    }).map(img => ({
       ...img,
       png_url: fixImageUrl(img.png_url),
       sticker_url: fixImageUrl(img.sticker_url)
     }));
-    
-    // 加载第一页图片
-    loadImages(1, fixedImages);
-    
-    // 记录图片总数
-    console.log(`总共加载了 ${fixedImages.length} 张图片`);
-  }, []);
+  };
+
+  // 初始加载和筛选条件变化时重新加载图片
+  useEffect(() => {
+    const filteredImgs = getFilteredImages();
+    loadImages(1, filteredImgs);
+    console.log(`筛选后图片数量: ${filteredImgs.length}`);
+  }, [searchTerm, selectedTags, images]);
 
   // 加载指定页的图片
-  const loadImages = (page: number, imageSource = images) => {
+  const loadImages = (page: number, imageSource = getFilteredImages()) => {
     const startIndex = (page - 1) * imagesPerPage;
     const endIndex = startIndex + imagesPerPage;
     
@@ -54,23 +62,14 @@ export default function ImageGrid({ searchTerm = '', selectedTags = [], onTagsCh
       setDisplayedImages(prev => [...prev, ...newImages]);
     }
     setCurrentPage(page);
-    console.log(`当前页: ${page}, 显示图片数: ${newImages.length}`);
+    console.log(`当前页: ${page}, 显示图片数: ${newImages.length}, 总数据: ${imageSource.length}`);
   };
 
   // 加载更多图片
   const loadMoreImages = () => {
     const filteredImgs = getFilteredImages();
     const nextPage = currentPage + 1;
-    const startIndex = (nextPage - 1) * imagesPerPage;
-    const endIndex = startIndex + imagesPerPage;
-    
-    const newImages = filteredImgs.slice(startIndex, endIndex);
-    
-    // 添加新加载的图片到已显示的图片列表中
-    setDisplayedImages((prev) => [...prev, ...newImages]);
-    setCurrentPage(nextPage);
-    
-    console.log(`加载更多: 页码 ${nextPage}, 新增 ${newImages.length} 张图片, 总计 ${displayedImages.length + newImages.length} 张`);
+    loadImages(nextPage, filteredImgs);
   };
 
   const handleDownload = async (url: string, e: React.MouseEvent) => {
@@ -83,7 +82,7 @@ export default function ImageGrid({ searchTerm = '', selectedTags = [], onTagsCh
       link.href = blobUrl;
       
       // 找到对应的图片对象，以获取 caption
-      const imageObj = images.find(img => img.png_url === url);
+      const imageObj = images.find(img => img.png_url === url || fixImageUrl(img.png_url) === url);
       const fileName = imageObj ? `${imageObj.caption}-transparent.png` : 'image.png';
       
       link.download = fileName;
@@ -111,29 +110,8 @@ export default function ImageGrid({ searchTerm = '', selectedTags = [], onTagsCh
     }
   };
 
-  // 获取筛选后的图片列表
-  const getFilteredImages = () => {
-    return images.filter((img) => {
-      const matchesSearch = img.caption
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase());
-      const matchesTags =
-        selectedTags.length === 0 ||
-        selectedTags.some((tag) => img.tags.includes(tag));
-      return matchesSearch && matchesTags;
-    });
-  };
-
-  // 筛选符合条件的图片
-  useEffect(() => {
-    const filteredImgs = getFilteredImages();
-    loadImages(1, filteredImgs);
-    console.log(`筛选后图片数量: ${filteredImgs.length}`);
-  }, [searchTerm, selectedTags]);
-
-  // 使用函数获取筛选后的图片
+  // 使用筛选后的图片
   const filteredImages = getFilteredImages();
-
   const hasMoreImages = currentPage * imagesPerPage < filteredImages.length;
 
   return (
@@ -181,7 +159,7 @@ export default function ImageGrid({ searchTerm = '', selectedTags = [], onTagsCh
                   alt={image.caption}
                   className="w-full h-full object-cover bg-gray-900"
                   onError={(e) => {
-                    console.error(`Failed to load image: ${image.png_url}`);
+                    console.error(`加载图片失败: ${image.png_url}`);
                     const target = e.target as HTMLImageElement;
                     target.onerror = null; // 防止无限循环
                     target.src = '/placeholder-image.png'; // 使用一个占位图像
@@ -215,7 +193,7 @@ export default function ImageGrid({ searchTerm = '', selectedTags = [], onTagsCh
         </div>
         
         {/* 底部加载更多按钮 */}
-        {displayedImages.length > 0 && displayedImages.length < getFilteredImages().length && (
+        {hasMoreImages && (
           <div className="flex justify-center mt-8 mb-12">
             <button
               onClick={loadMoreImages}

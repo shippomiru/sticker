@@ -24,6 +24,9 @@ free-png/
 │       ├── crop_all_images_improved.py     # 批量裁剪工具
 │       └── test_smooth_no_gap_outline.py   # 边框平滑处理工具
 │
+├── batch_manager.py   # 批次管理工具
+├── process_images.py  # 图像处理主脚本
+├── metadata/          # 批次和处理记录
 ├── project/           # 前端应用（React + TypeScript）
 │   ├── public/        # 静态资源
 │   │   └── images/    # 处理后的PNG图片
@@ -32,9 +35,13 @@ free-png/
 │       ├── data/      # 前端数据（与api/data同步）
 │       └── utils/     # 工具函数
 │
-├── results-photos-cropped/  # 处理后的图片（带白边和透明背景）
-├── unsplash-images/         # 原始图片存储
-└── test/                    # 测试代码和临时脚本
+├── processed-images/  # 处理后的图片（带白边和透明背景）
+│   └── YYYYMMDD/      # 按日期组织的批次目录
+├── unsplash-images/   # 原始图片存储
+│   └── YYYYMMDD/      # 按日期组织的批次目录
+├── temp-results/      # 处理过程中的临时文件
+│   └── YYYYMMDD/      # 按日期组织的批次目录
+└── test/              # 测试代码和临时脚本
 ```
 
 ## 技术架构设计
@@ -87,16 +94,25 @@ free-png/
 ### 图片分类系统
 
 采用预定义标签集进行分类，包括：
-- car（汽车）、christmas（圣诞）、flower（花卉）、book（书籍）
-- dog（狗）、cat（猫）、pumpkin（南瓜）、airplane（飞机）
-- apple（苹果）、birthday（生日）、baby（婴儿）、camera（相机）
-- gun（枪械）、crown（皇冠）、money（钱币）等
+- car（汽车）
+- christmas（圣诞）
+- flower（花卉）
+- dog（狗）
+- cat（猫）
+- pumpkin（南瓜）
+- airplane（飞机）
+- birthday（生日）
+- baby（婴儿）
+- camera（相机）
+- crown（皇冠）
+- others（其他）
 
 分类系统采用多层匹配逻辑：
 1. 直接匹配描述中的关键词
 2. 同义词扩展匹配
 3. 主体名词提取及匹配
 4. 语义规则推断
+5. 无法匹配时归类为"others"
 
 ### 特别强调
 全部处理流程使用**本地开源模型 + GitHub Actions 自动执行**，完全**无需调用付费 API**，可大规模扩展。
@@ -107,6 +123,21 @@ free-png/
    - 从JPG图片中提取主体，生成透明背景PNG
    - 创建带白色边框的PNG图片变体
    - 智能裁剪，确保主体居中
+
+   批次处理支持：
+   ```bash
+   # 创建新批次
+   python3 batch_manager.py create [--date YYYYMMDD]
+
+   # 导入图片到批次
+   python3 batch_manager.py import SOURCE_DIR --batch YYYYMMDD
+
+   # 处理批次图片
+   python3 process_images.py --batch YYYYMMDD
+
+   # 查看批次状态
+   python3 batch_manager.py status YYYYMMDD
+   ```
 
 2. **元数据生成**：
    - 自动识别图片主题和内容

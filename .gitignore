@@ -1,15 +1,45 @@
-# 忽略处理后的图片
-unsplash-images/
-results*/
-temp-*/
-test/api/photos/
-api/photos/
+# 忽略所有图片文件夹
 project/public/images/
+processed-images/
+backups/
 
-# 忽略项目生成的数据文件
+# 忽略node模块
+node_modules/
+
+# 忽略临时文件
+*.log
+*.tmp
+.DS_Store
+
+# 忽略环境变量文件
+.env
+.env.local
+
+# 其他二进制和大型文件
+*.zip
+*.tar.gz
 *.png
 *.jpg
 *.jpeg
+*.gif
+
+# 忽略缓存
+__pycache__/
+*.py[cod]
+*$py.class
+.cache/
+
+# 忽略元数据备份
+api/data/*.bak.*
+
+# 忽略处理后的图片
+unsplash-images/
+results*/
+processed-images/
+temp-*/
+test/api/photos/
+api/photos/
+
 # 允许images.json文件
 api/data/*
 !api/data/images.json
@@ -17,14 +47,9 @@ api/data/*
 # project/src/data/images.json
 missing_originals.log
 
-# 忽略日志和临时文件
-*.log
-.DS_Store
-
-# 忽略node_modules
-**/node_modules/
-**/dist/
-**/.vite/
+# 忽略批次记录文件，但保留结构
+metadata/*
+!metadata/.gitkeep
 
 # 忽略测试和存档代码
 test/api/archive/

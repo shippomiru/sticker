@@ -4,12 +4,20 @@ Cloudflare R2图片上传工具
 
 此脚本用于将处理后的图片上传到Cloudflare R2存储桶，
 作为Free-PNG项目的CDN图片源。
+
+使用方法:
+    python3 api/processors/upload_to_r2.py [--batch YYYYMMDD]
+    python3 api/processors/upload_to_r2.py --clear  # 清空存储桶
+    
+    默认上传project/public/images目录的图片
+    使用--batch参数可以指定上传某个批次的图片
 """
 
 import boto3
 import os
 import json
 import sys
+import argparse
 from botocore.config import Config
 from datetime import datetime
 
@@ -23,6 +31,15 @@ r2_public_url = os.environ.get("R2_PUBLIC_URL", "https://pub-ee5efd5217f84e8e8d4
 # R2端点URL
 endpoint_url = f"https://{r2_account_id}.r2.cloudflarestorage.com"
 
+# 定义常量
+PROJECT_IMAGES_DIR = "project/public/images"
+PROCESSED_IMAGES_DIR = "processed-images"
+METADATA_DIR = "metadata"
+
+def ensure_dir_exists(directory):
+    """确保目录存在，不存在则创建"""
+    if not os.path.exists(directory):
+        os.makedirs(directory, exist_ok=True)
 
 def init_s3_client():
     """初始化S3客户端（R2兼容S3 API）"""
@@ -81,8 +98,15 @@ def upload_directory(client, local_directory, prefix="", limit=None):
         
         for file in png_files:
             local_path = os.path.join(root, file)
-            relative_path = os.path.relpath(local_path, local_directory)
-            s3_key = os.path.join(prefix, relative_path).replace("\\", "/")
+            # 计算相对路径作为S3键名
+            if prefix:
+                # 如果提供了前缀，使用它
+                relative_path = file
+                s3_key = os.path.join(prefix, relative_path).replace("\\", "/")
+            else:
+                # 否则用相对路径
+                relative_path = os.path.relpath(local_path, local_directory)
+                s3_key = relative_path.replace("\\", "/")
             
             if upload_file(client, local_path, s3_key):
                 success_count += 1
@@ -154,8 +178,97 @@ def update_metadata_with_r2_urls(images_json_path="api/data/images.json"):
         return False
 
 
+def upload_batch(client, batch_date, auto_update_metadata=False):
+    """上传指定批次的图片到R2
+    
+    Args:
+        client: S3客户端
+        batch_date: 批次日期 (YYYYMMDD)
+        auto_update_metadata: 是否自动更新元数据
+    """
+    batch_dir = os.path.join(PROCESSED_IMAGES_DIR, batch_date)
+    if not os.path.exists(batch_dir):
+        print(f"批次目录不存在: {batch_dir}")
+        return 0, 0
+    
+    print(f"\n正在上传批次 {batch_date} 的图片...")
+    # 使用批次日期作为前缀
+    prefix = f"batches/{batch_date}"
+    success, failed = upload_directory(client, batch_dir, prefix=prefix)
+    
+    print(f"批次 {batch_date} 上传完成! 成功: {success}, 失败: {failed}")
+    
+    # 如果需要，自动更新元数据
+    if auto_update_metadata and success > 0:
+        print("正在更新元数据中的URL...")
+        update_metadata_with_r2_urls()
+    
+    return success, failed
+
+
+def clear_bucket(client):
+    """清空R2存储桶中的所有对象
+    
+    Args:
+        client: S3客户端
+        
+    Returns:
+        int: 删除的对象数量
+    """
+    try:
+        print(f"\n开始清空 {r2_bucket_name} 存储桶...")
+        
+        # 列出所有对象
+        paginator = client.get_paginator('list_objects_v2')
+        deleted_count = 0
+        
+        # 分页处理所有对象
+        for page in paginator.paginate(Bucket=r2_bucket_name):
+            if 'Contents' not in page:
+                print("存储桶为空，无需清理")
+                return 0
+                
+            # 创建要删除的对象列表
+            delete_list = {'Objects': [{'Key': obj['Key']} for obj in page['Contents']]}
+            
+            # 执行批量删除
+            if delete_list['Objects']:
+                response = client.delete_objects(
+                    Bucket=r2_bucket_name,
+                    Delete=delete_list
+                )
+                
+                # 统计已删除对象
+                if 'Deleted' in response:
+                    deleted_count += len(response['Deleted'])
+                    for obj in response['Deleted']:
+                        print(f"已删除: {obj['Key']}")
+                
+                # 记录删除失败的对象
+                if 'Errors' in response and response['Errors']:
+                    for error in response['Errors']:
+                        print(f"删除失败: {error['Key']} - {error['Message']}")
+        
+        print(f"\n成功清空存储桶! 共删除 {deleted_count} 个对象")
+        return deleted_count
+        
+    except Exception as e:
+        print(f"清空存储桶失败: {e}")
+        return 0
+
+
 def main():
     """主函数"""
+    # 解析命令行参数
+    parser = argparse.ArgumentParser(description='Cloudflare R2图片上传工具')
+    parser.add_argument('--batch', help='指定要上传的批次日期 (YYYYMMDD)')
+    parser.add_argument('--dir', help='指定要上传的目录')
+    parser.add_argument('--test', action='store_true', help='测试模式，仅上传少量图片')
+    parser.add_argument('--auto-update', action='store_true', help='自动更新元数据URL')
+    parser.add_argument('--clear', action='store_true', help='清空R2存储桶')
+    
+    args = parser.parse_args()
+    
     # 检查凭证是否已配置
     if r2_account_id == "请替换为您的账户ID":
         print("错误: 未配置R2凭证。请设置环境变量或直接在脚本中修改凭证。")
@@ -168,14 +281,40 @@ def main():
     if s3_client is None:
         return 1
     
-    # 上传透明背景和白边图片
-    print(f"\n开始上传图片到 {r2_bucket_name} 存储桶...")
-    images_dir = "results-photos-cropped"
-    success, failed = upload_directory(s3_client, images_dir)
-    print(f"图片上传完成! 成功: {success}, 失败: {failed}")
+    # 如果指定了清空操作，则清空存储桶并退出
+    if args.clear:
+        deleted_count = clear_bucket(s3_client)
+        if deleted_count > 0:
+            print("存储桶已成功清空")
+        return 0
+    
+    # 确定上传文件夹
+    if args.batch:
+        # 上传指定批次的图片
+        upload_batch(s3_client, args.batch, args.auto_update)
+    elif args.dir:
+        # 上传指定目录的图片
+        images_dir = args.dir
+        print(f"\n开始上传 {images_dir} 目录到 {r2_bucket_name} 存储桶...")
+        success, failed = upload_directory(
+            s3_client, 
+            images_dir, 
+            limit=10 if args.test else None
+        )
+        print(f"上传完成! 成功: {success}, 失败: {failed}")
+    else:
+        # 默认上传前端展示目录的图片
+        images_dir = PROJECT_IMAGES_DIR
+        print(f"\n开始上传 {images_dir} 目录到 {r2_bucket_name} 存储桶...")
+        success, failed = upload_directory(
+            s3_client, 
+            images_dir, 
+            limit=10 if args.test else None
+        )
+        print(f"上传完成! 成功: {success}, 失败: {failed}")
     
     # 如果需要，更新元数据中的URL
-    if input("\n是否更新元数据文件中的URL为R2 CDN URL? (y/n): ").lower() == 'y':
+    if not args.auto_update and input("\n是否更新元数据文件中的URL为R2 CDN URL? (y/n): ").lower() == 'y':
         update_metadata_with_r2_urls()
     
     return 0
