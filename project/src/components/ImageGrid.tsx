@@ -95,10 +95,15 @@ export default function ImageGrid({ searchTerm = '', selectedTags = [], onTagsCh
     }
   };
 
-  // Get unique tags from all images
+  // Get unique tags from all images and sort them
   const allTags = Array.from(
     new Set(images.flatMap((img) => img.tags))
-  ).sort();
+  ).sort((a, b) => {
+    // 确保"others"标签显示在最后
+    if (a === "others") return 1;
+    if (b === "others") return -1;
+    return a.localeCompare(b);
+  });
 
   const toggleTag = (tag: string) => {
     // 重置为第一页
