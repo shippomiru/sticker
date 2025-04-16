@@ -65,9 +65,9 @@ ensure_dir_exists(WORKFLOW_STATE_DIR)
 WORKFLOW_STAGES = [
     "imported",        # 图片已从Unsplash导入
     "processed",       # 图片已处理（抠图、添加白边等）
+    "compressed",      # 已压缩PNG图片
     "verified",        # 图片已通过人工验收
     "metadata_added",  # 已添加元数据
-    "compressed",      # 已压缩PNG图片
     "uploaded_r2",     # 已上传到R2
     "published"        # 已发布到网站
 ]
@@ -604,6 +604,91 @@ def upload_to_r2(batch_date):
         logger.error(f"上传到R2时出错: {str(e)}")
         return False, {"error": str(e)}
 
+def copy_to_public(batch_date, compress_after_copy=False):
+    """将批次图片复制到public/images目录
+    
+    Args:
+        batch_date: 批次日期
+        compress_after_copy: 复制后是否压缩public目录中的图片
+        
+    Returns:
+        tuple: (成功状态, 详细信息)
+    """
+    logger.info(f"开始将批次 {batch_date} 图片复制到public/images目录...")
+    
+    # 检查批次是否存在
+    batch = get_batch_status(batch_date)
+    if not batch:
+        logger.error(f"批次 {batch_date} 不存在")
+        return False, {"error": f"批次 {batch_date} 不存在"}
+    
+    # 设置源目录和目标目录
+    src_dir = os.path.join(PROCESSED_IMAGES_DIR, batch_date)
+    dest_dir = "project/public/images"
+    
+    # 确保目标目录存在
+    ensure_dir_exists(dest_dir)
+    
+    try:
+        # 统计计数
+        copied_count = 0
+        skipped_count = 0
+        
+        # 遍历源目录中的所有PNG文件
+        for file in os.listdir(src_dir):
+            if file.endswith('.png'):
+                src_file = os.path.join(src_dir, file)
+                dest_file = os.path.join(dest_dir, file)
+                
+                # 检查目标文件是否已存在
+                if os.path.exists(dest_file):
+                    # 如果已存在，检查是否完全相同
+                    if os.path.getsize(src_file) == os.path.getsize(dest_file):
+                        logger.info(f"文件已存在且大小相同，跳过: {file}")
+                        skipped_count += 1
+                        continue
+                
+                # 复制文件
+                logger.info(f"复制文件: {file}")
+                shutil.copy2(src_file, dest_file)
+                copied_count += 1
+        
+        # 记录结果
+        logger.info(f"复制完成! 新复制: {copied_count}, 跳过: {skipped_count}")
+        
+        # 如果需要压缩public目录中的图片
+        if compress_after_copy:
+            logger.info("开始压缩public目录中的PNG图片...")
+            
+            # 调用compress_public_images.py脚本
+            cmd = ["python3", "compress_public_images.py"]
+            logger.info(f"执行命令: {' '.join(cmd)}")
+            
+            process = subprocess.Popen(
+                cmd, 
+                stdout=subprocess.PIPE, 
+                stderr=subprocess.PIPE,
+                universal_newlines=True
+            )
+            
+            # 实时输出处理日志
+            stdout, stderr = process.communicate()
+            
+            if process.returncode != 0:
+                logger.error(f"压缩public目录PNG图片失败: {stderr}")
+            else:
+                logger.info("成功压缩public目录中的PNG图片")
+        
+        return True, {
+            "status": "已完成",
+            "copied_count": copied_count,
+            "skipped_count": skipped_count
+        }
+        
+    except Exception as e:
+        logger.error(f"复制图片到public目录时出错: {str(e)}")
+        return False, {"error": str(e)}
+
 def publish_to_website(batch_date):
     """将批次数据发布到网站
     
@@ -628,6 +713,13 @@ def publish_to_website(batch_date):
         return False, {"error": "元数据文件未生成，请先生成元数据"}
     
     try:
+        # 0. 首先确保图片复制到public目录
+        logger.info("确保批次图片已复制到public目录...")
+        copy_success, copy_details = copy_to_public(batch_date, compress_after_copy=True)
+        if not copy_success:
+            logger.error(f"复制图片到public目录失败: {copy_details.get('error', '')}")
+            return False, {"error": f"复制图片到public目录失败: {copy_details.get('error', '')}"}
+        
         # 1. 配置 merge_metadata.py 的元数据文件路径
         # 先备份当前配置
         with open("merge_metadata.py", "r", encoding="utf-8") as f:
@@ -671,7 +763,7 @@ def publish_to_website(batch_date):
         # 3. 恢复原始配置
         with open("merge_metadata.py", "w", encoding="utf-8") as f:
             f.write(merge_metadata_content)
-        
+            
         # 4. 更新元数据URL为R2 CDN链接 
         logger.info("更新元数据URL为R2 CDN链接...")
         
@@ -816,6 +908,11 @@ def main():
     compress_parser.add_argument('--quality', type=int, default=80, help='pngquant质量(0-100)，默认80')
     compress_parser.add_argument('--oxipng-level', type=int, default=2, help='oxipng压缩级别(0-6)，默认2')
     
+    # 复制到public目录命令 - 新增
+    copy_parser = subparsers.add_parser('copy-to-public', help='将批次图片复制到public/images目录')
+    copy_parser.add_argument('--batch', required=True, help='批次日期 (YYYYMMDD 格式)')
+    copy_parser.add_argument('--compress', action='store_true', help='复制后压缩public目录中的图片')
+    
     # 上传到 R2 命令
     upload_parser = subparsers.add_parser('upload-r2', help='上传批次图片和元数据到 R2 存储')
     upload_parser.add_argument('--batch', required=True, help='批次日期 (YYYYMMDD 格式)')
@@ -907,6 +1004,22 @@ def main():
             print_workflow_status(state)
         else:
             print(f"压缩PNG图片失败: {details.get('error', '') or details.get('warning', '')}")
+    
+    elif args.command == 'copy-to-public':
+        # 复制图片到public目录
+        success, details = copy_to_public(batch_date, args.compress)
+        
+        if success:
+            print(f"成功将批次 {batch_date} 图片复制到public目录")
+            print(f"新复制: {details.get('copied_count', 0)}, 跳过: {details.get('skipped_count', 0)}")
+            
+            # 如果指定了压缩选项，压缩public目录中的图片
+            if args.compress:
+                print("\n开始压缩public目录中的PNG图片...")
+                cmd = ["python3", "compress_public_images.py"]
+                subprocess.run(cmd)
+        else:
+            print(f"复制到public目录失败: {details.get('error', '')}")
     
     elif args.command == 'upload-r2':
         success, details = upload_to_r2(batch_date)
