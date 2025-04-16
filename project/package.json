@@ -13,11 +13,14 @@
     "prebuild": "npm run sync-data && npm run generate-sitemap"
   },
   "dependencies": {
+    "@types/react-helmet": "^6.1.11",
     "i18next": "^23.10.1",
     "i18next-browser-languagedetector": "^7.2.0",
     "lucide-react": "^0.344.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-helmet": "^6.1.0",
+    "react-helmet-async": "^2.0.5",
     "react-i18next": "^14.1.0",
     "react-router-dom": "^6.22.3"
   },
