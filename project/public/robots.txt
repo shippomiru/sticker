@@ -7,7 +7,7 @@ Allow: /
 Disallow:
 
 # Sitemap文件位置
-Sitemap: https://free-png.example.com/sitemap.xml
+Sitemap: https://clippng.online/sitemap.xml
 
 # 爬取延迟设置（秒）
 Crawl-delay: 10 

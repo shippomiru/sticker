@@ -10,14 +10,14 @@ export function About() {
       <div className="space-y-16">
         {/* Header */}
         <div>
-          <h1 className="text-3xl font-medium text-gray-900">About ImageAI</h1>
+          <h1 className="text-3xl font-medium text-gray-900">About ClipPng</h1>
         </div>
 
         {/* Mission */}
         <section>
           <h2 className="text-xl font-medium text-gray-900 mb-4">Our Mission</h2>
           <p className="text-gray-600 leading-relaxed text-lg">
-            ImageAI is a free image resource platform dedicated to providing high-quality image assets for designers, developers, and creators. Our platform offers a curated collection of professional images that are free to use in both personal and commercial projects.
+            ClipPng is a free image resource platform dedicated to providing high-quality image assets for designers, developers, and creators. Our platform offers a curated collection of professional images that are free to use in both personal and commercial projects.
           </p>
         </section>
 
@@ -61,7 +61,7 @@ export function About() {
         <section>
           <h2 className="text-xl font-medium text-gray-900 mb-4">Image License</h2>
           <p className="text-lg text-gray-600 leading-relaxed mb-6">
-            All images on ImageAI are free to use for both personal and commercial purposes. Our license terms are simple:
+            All images on ClipPng are free to use for both personal and commercial purposes. Our license terms are simple:
           </p>
           <ul className="text-lg text-gray-600 space-y-3">
             <li className="flex items-center gap-3">
@@ -74,7 +74,7 @@ export function About() {
             </li>
             <li className="flex items-center gap-3">
               <span className="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
-              Attribution to ImageAI is appreciated but not required
+              Attribution to ClipPng is appreciated but not required
             </li>
             <li className="flex items-center gap-3">
               <span className="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
@@ -90,8 +90,8 @@ export function About() {
             Have questions, suggestions, or interested in collaboration? We'd love to hear from you:
           </p>
           <div className="space-y-2 text-lg text-gray-600">
-            <p>Email: contact@imageai.com</p>
-            <p>WeChat: ImageAI_Support</p>
+            <p>Email: contact@clippng.online</p>
+            <p>WeChat: ClipPng_Support</p>
           </div>
         </section>
       </div>

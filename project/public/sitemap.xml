@@ -2,7 +2,7 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <!-- 主页 -->
   <url>
-    <loc>https://free-png.example.com/</loc>
+    <loc>https://clippng.online/</loc>
     <lastmod>2025-04-13</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
@@ -10,7 +10,7 @@
   
   <!-- 关于页面 -->
   <url>
-    <loc>https://free-png.example.com/about</loc>
+    <loc>https://clippng.online/about</loc>
     <lastmod>2025-04-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
@@ -19,7 +19,7 @@
   <!-- 图片详情页面 - 由系统自动生成 -->
   <!-- 飞机图片 -->
   <url>
-    <loc>https://free-png.example.com/a-large-passenger-jet-flying-in-the-sky</loc>
+    <loc>https://clippng.online/a-large-passenger-jet-flying-in-the-sky</loc>
     <lastmod>2025-04-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
@@ -27,7 +27,7 @@
   
   <!-- 枪支图片 -->
   <url>
-    <loc>https://free-png.example.com/a-revolver-gun-on-a-wooden-table</loc>
+    <loc>https://clippng.online/a-revolver-gun-on-a-wooden-table</loc>
     <lastmod>2025-04-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
@@ -35,7 +35,7 @@
   
   <!-- 花卉图片 -->
   <url>
-    <loc>https://free-png.example.com/a-close-up-of-a-flower-with-a-black-background</loc>
+    <loc>https://clippng.online/a-close-up-of-a-flower-with-a-black-background</loc>
     <lastmod>2025-04-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
@@ -43,7 +43,7 @@
   
   <!-- 狗狗图片 -->
   <url>
-    <loc>https://free-png.example.com/a-small-puppy-is-running-in-the-woods</loc>
+    <loc>https://clippng.online/a-small-puppy-is-running-in-the-woods</loc>
     <lastmod>2025-04-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
@@ -51,7 +51,7 @@
   
   <!-- 南瓜图片 -->
   <url>
-    <loc>https://free-png.example.com/a-small-pumpkin-sitting-on-a-table</loc>
+    <loc>https://clippng.online/a-small-pumpkin-sitting-on-a-table</loc>
     <lastmod>2025-04-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
@@ -59,7 +59,7 @@
   
   <!-- 猫咪图片 -->
   <url>
-    <loc>https://free-png.example.com/a-cat-sitting-on-a-white-bench</loc>
+    <loc>https://clippng.online/a-cat-sitting-on-a-white-bench</loc>
     <lastmod>2025-04-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
@@ -67,7 +67,7 @@
   
   <!-- 相机图片 -->
   <url>
-    <loc>https://free-png.example.com/a-camera-with-a-nik-lens-attached-to-it</loc>
+    <loc>https://clippng.online/a-camera-with-a-nik-lens-attached-to-it</loc>
     <lastmod>2025-04-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
@@ -75,7 +75,7 @@
   
   <!-- 苹果图片 -->
   <url>
-    <loc>https://free-png.example.com/a-bowl-of-apples-and-two-apples-on-a-table</loc>
+    <loc>https://clippng.online/a-bowl-of-apples-and-two-apples-on-a-table</loc>
     <lastmod>2025-04-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
@@ -83,7 +83,7 @@
   
   <!-- 其他小狗图片 -->
   <url>
-    <loc>https://free-png.example.com/a-small-dog-sitting-on-a-orange-background</loc>
+    <loc>https://clippng.online/a-small-dog-sitting-on-a-orange-background</loc>
     <lastmod>2025-04-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
@@ -91,7 +91,7 @@
   
   <!-- 另一个飞机图片 -->
   <url>
-    <loc>https://free-png.example.com/a-large-white-airplane-flying-through-a-cloudy-sky</loc>
+    <loc>https://clippng.online/a-large-white-airplane-flying-through-a-cloudy-sky</loc>
     <lastmod>2025-04-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
@@ -99,7 +99,7 @@
   
   <!-- 圣诞树图片 -->
   <url>
-    <loc>https://free-png.example.com/a-small-christmas-tree-with-ornaments-and-decorations</loc>
+    <loc>https://clippng.online/a-small-christmas-tree-with-ornaments-and-decorations</loc>
     <lastmod>2025-04-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
@@ -107,55 +107,55 @@
   
   <!-- 类别标签页（按标签筛选） -->
   <url>
-    <loc>https://free-png.example.com/?tag=airplane</loc>
+    <loc>https://clippng.online/?tag=airplane</loc>
     <lastmod>2025-04-13</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://free-png.example.com/?tag=gun</loc>
+    <loc>https://clippng.online/?tag=gun</loc>
     <lastmod>2025-04-13</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://free-png.example.com/?tag=flower</loc>
+    <loc>https://clippng.online/?tag=flower</loc>
     <lastmod>2025-04-13</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://free-png.example.com/?tag=dog</loc>
+    <loc>https://clippng.online/?tag=dog</loc>
     <lastmod>2025-04-13</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://free-png.example.com/?tag=pumpkin</loc>
+    <loc>https://clippng.online/?tag=pumpkin</loc>
     <lastmod>2025-04-13</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://free-png.example.com/?tag=cat</loc>
+    <loc>https://clippng.online/?tag=cat</loc>
     <lastmod>2025-04-13</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://free-png.example.com/?tag=camera</loc>
+    <loc>https://clippng.online/?tag=camera</loc>
     <lastmod>2025-04-13</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://free-png.example.com/?tag=apple</loc>
+    <loc>https://clippng.online/?tag=apple</loc>
     <lastmod>2025-04-13</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://free-png.example.com/?tag=christmas</loc>
+    <loc>https://clippng.online/?tag=christmas</loc>
     <lastmod>2025-04-13</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>

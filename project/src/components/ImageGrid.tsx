@@ -15,7 +15,7 @@ export default function ImageGrid({ searchTerm = '', selectedTags = [], onTagsCh
   const { t } = useTranslation();
   const [displayedImages, setDisplayedImages] = useState<typeof images>([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const imagesPerPage = 20; // 增加每页显示的图片数量
+  const imagesPerPage = 24; // 每页显示24张图片
   const navigate = useNavigate();
 
   // 检查图片URL格式，确保所有URL都有/images/前缀

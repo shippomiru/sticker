@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { Search, Image as ImageIcon } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import ScissorsLogo from './ScissorsLogo';
 
 interface LayoutProps {
   searchTerm?: string;
@@ -25,8 +26,8 @@ export function Layout({ searchTerm = '', onSearchChange = () => {} }: LayoutPro
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <Link to="/" className="flex items-center space-x-3">
-              <ImageIcon className="h-8 w-8 text-blue-600" />
-              <h1 className="text-2xl font-bold text-gray-900">ImageAI</h1>
+              <ScissorsLogo className="text-blue-600" size={32} />
+              <h1 className="text-2xl font-bold text-gray-900">ClipPng</h1>
             </Link>
             <div className="flex items-center space-x-4">
               <div className="relative">
@@ -57,8 +58,8 @@ export function Layout({ searchTerm = '', onSearchChange = () => {} }: LayoutPro
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between">
             <div className="flex items-center space-x-3 mb-4 md:mb-0">
-              <ImageIcon className="h-6 w-6 text-blue-600" />
-              <span className="text-xl font-semibold text-gray-900">ImageAI</span>
+              <ScissorsLogo className="text-blue-600" size={24} />
+              <span className="text-xl font-semibold text-gray-900">ClipPng</span>
             </div>
             <div className="flex flex-wrap gap-6 text-sm">
               <Link 
