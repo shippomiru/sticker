@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- 方形蓝色背景，带圆角 -->
+  <rect width="512" height="512" rx="80" fill="#3B82F6" />
+  
+  <!-- 居中的白色字母C，设计风格极简优雅 -->
+  <path d="M336 176C336 176 270 144 206 176C142 208 126 304 206 336C286 368 336 336 336 336" 
+        stroke="white" 
+        stroke-width="40" 
+        stroke-linecap="round" 
+        stroke-linejoin="round"
+        fill="none" />
+</svg> 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
+import { Helmet } from 'react-helmet';
 import Layout from './components/Layout';
 import ImageGrid from './components/ImageGrid';
 import ImageDetail from './components/ImageDetail';
@@ -31,6 +32,13 @@ function App() {
 
   return (
     <Router>
+      <Helmet>
+        <title>Free Clipart, PNG & Stickers for Creators – ClipPng</title>
+        <meta 
+          name="description" 
+          content="Browse and download thousands of PNGs, clipart graphics, and stickers for decoration, crafts, digital art, or school projects. All files are free to use." 
+        />
+      </Helmet>
       <Routes>
         <Route path="/" element={<Layout searchTerm={searchTerm} onSearchChange={setSearchTerm} />}>
           <Route index element={
