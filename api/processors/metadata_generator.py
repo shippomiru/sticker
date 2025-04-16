@@ -322,18 +322,43 @@ def extract_main_noun_fallback(caption):
 
 def classify_image_to_predefined_tags(caption, extracted_noun=None):
     """将图片基于描述分类到预定义的标签列表中"""
-    # 固定的标签列表
+    # 固定的标签列表，按照指定的展示顺序
     predefined_tags = [
-        "car", "christmas", "flower", "book", "dog", "cat", "pumpkin", 
-        "airplane", "apple", "birthday", "baby", "books", "camera", 
-        "gun", "crown", "money"
+        "christmas", "flower", "book", "christmas tree", "dog", "car", 
+        "cat", "pumpkin", "apple", "airplane", "birthday", "santa hat", 
+        "crown", "gun", "books", "baby", "camera", "flowers", "money", "others"
     ]
+    
+    # 标签对应的内页链接
+    tag_pages = {
+        "christmas": "/clipart/christmas/",
+        "flower": "/clipart/flower/",
+        "book": "/clipart/book/",
+        "christmas tree": "/clipart/christmas-tree/",
+        "dog": "/clipart/dog/",
+        "car": "/clipart/car/",
+        "cat": "/clipart/cat/",
+        "pumpkin": "/clipart/pumpkin/",
+        "apple": "/clipart/apple/",
+        "airplane": "/clipart/airplane/",
+        "birthday": "/clipart/birthday/",
+        "santa hat": "/png/santa-hat/",
+        "crown": "/png/crown/",
+        "gun": "/png/gun/",
+        "books": "/clipart/book/",
+        "baby": "/clipart/baby/",
+        "camera": "/clipart/camera/",
+        "flowers": "/clipart/flower/",
+        "money": "/png/money/",
+        "others": "/png/others/"
+    }
     
     # 同义词映射，帮助匹配更多变体
     synonyms = {
         "car": ["vehicle", "truck", "automobile", "jeep", "suv"],
         "airplane": ["plane", "aircraft", "jet", "airliner"],
         "flower": ["rose", "tulip", "floral", "blossom", "petal"],
+        "flowers": ["bouquet", "blossoms", "tulips", "roses", "petals"],
         "book": ["novel", "textbook", "journal"],
         "books": ["library", "novels", "textbooks", "journals"],
         "dog": ["puppy", "canine", "hound"],
@@ -342,7 +367,12 @@ def classify_image_to_predefined_tags(caption, extracted_noun=None):
         "camera": ["dslr", "photography", "lens", "digital camera"],
         "gun": ["pistol", "rifle", "firearm", "revolver", "weapon"],
         "money": ["cash", "currency", "dollars", "bills", "coins"],
-        "christmas": ["xmas", "holiday", "santa", "december"]
+        "christmas": ["xmas", "holiday", "december", "winter holiday"],
+        "christmas tree": ["xmas tree", "pine tree", "decorated tree", "holiday tree"],
+        "santa hat": ["christmas hat", "red hat", "santa cap", "santa claus hat"],
+        "crown": ["tiara", "diadem", "coronet", "royal headpiece"],
+        "pumpkin": ["gourd", "squash", "halloween", "jack o lantern"],
+        "apple": ["fruit", "red apple", "green apple", "macintosh"]
     }
     
     # 将描述转为小写便于匹配
@@ -351,7 +381,7 @@ def classify_image_to_predefined_tags(caption, extracted_noun=None):
     
     # 1. 直接匹配预定义标签
     for tag in predefined_tags:
-        if tag in caption_lower:
+        if tag != "others" and tag in caption_lower:
             matched_tags.append(tag)
             continue
             
@@ -366,7 +396,7 @@ def classify_image_to_predefined_tags(caption, extracted_noun=None):
     if extracted_noun and not matched_tags:
         extracted_lower = extracted_noun.lower()
         # 直接匹配标签
-        if extracted_lower in predefined_tags:
+        if extracted_lower in predefined_tags and extracted_lower != "others":
             matched_tags.append(extracted_lower)
         else:
             # 匹配同义词
@@ -393,6 +423,13 @@ def classify_image_to_predefined_tags(caption, extracted_noun=None):
             matched_tags.append("gun")
         elif any(word in caption_lower for word in ["photo", "picture", "photographer"]):
             matched_tags.append("camera")
+        elif any(word in caption_lower for word in ["december", "holiday", "ornament"]):
+            if "tree" in caption_lower:
+                matched_tags.append("christmas tree")
+            else:
+                matched_tags.append("christmas")
+        elif any(word in caption_lower for word in ["red cap", "santa", "claus"]):
+            matched_tags.append("santa hat")
     
     # 5. 如果仍未匹配任何标签，则根据其他规则分配默认标签
     if not matched_tags:
@@ -400,11 +437,15 @@ def classify_image_to_predefined_tags(caption, extracted_noun=None):
             matched_tags.append("apple")
         elif "celebration" in caption_lower or "party" in caption_lower:
             matched_tags.append("birthday")
+        elif "tree" in caption_lower and ("green" in caption_lower or "pine" in caption_lower):
+            matched_tags.append("christmas tree")
         else:
-            # 最后的默认标签 - 使用最常见的标签
-            matched_tags.append("flower")  # 假设花朵是最通用的标签
+            # 最后的默认标签为"others"
+            matched_tags.append("others")
     
     print(f"将图片分类为标签: {matched_tags}")
+    
+    # 返回标签和对应内页链接
     return matched_tags
 
 def generate_metadata_for_image(image_path):

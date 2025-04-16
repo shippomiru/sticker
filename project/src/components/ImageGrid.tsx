@@ -5,6 +5,28 @@ import { useTranslation } from 'react-i18next';
 import images from '../data/images.json';
 import { useNavigate } from 'react-router-dom';
 
+// 定义图片对象的接口
+interface ImageItem {
+  id: string;
+  caption: string;
+  description: string;
+  tags: string[];
+  slug: string;
+  author: string;
+  original_url: string;
+  png_url: string;
+  sticker_url: string;
+  created_at: string;
+  tag_pages?: Record<string, string>; // 标签对应的内页链接
+}
+
+// 标签顺序 - 用于确保前端展示顺序一致
+const TAG_ORDER = [
+  "christmas", "flower", "book", "christmas tree", "dog", "car", 
+  "cat", "pumpkin", "apple", "airplane", "birthday", "santa hat", 
+  "crown", "gun", "books", "baby", "camera", "flowers", "money", "others"
+];
+
 interface ImageGridProps {
   searchTerm: string;
   selectedTags?: string[];
@@ -13,7 +35,7 @@ interface ImageGridProps {
 
 export default function ImageGrid({ searchTerm = '', selectedTags = [], onTagsChange }: ImageGridProps) {
   const { t } = useTranslation();
-  const [displayedImages, setDisplayedImages] = useState<typeof images>([]);
+  const [displayedImages, setDisplayedImages] = useState<ImageItem[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const imagesPerPage = 20; // 增加每页显示的图片数量
   const navigate = useNavigate();
@@ -28,7 +50,7 @@ export default function ImageGrid({ searchTerm = '', selectedTags = [], onTagsCh
 
   // 获取筛选后的图片列表
   const getFilteredImages = () => {
-    return images.filter((img) => {
+    return (images as ImageItem[]).filter((img) => {
       const matchesSearch = img.caption
         .toLowerCase()
         .includes(searchTerm.toLowerCase());
@@ -82,7 +104,7 @@ export default function ImageGrid({ searchTerm = '', selectedTags = [], onTagsCh
       link.href = blobUrl;
       
       // 找到对应的图片对象，以获取 caption
-      const imageObj = images.find(img => img.png_url === url || fixImageUrl(img.png_url) === url);
+      const imageObj = (images as ImageItem[]).find(img => img.png_url === url || fixImageUrl(img.png_url) === url);
       const fileName = imageObj ? `${imageObj.caption}-transparent.png` : 'image.png';
       
       link.download = fileName;
@@ -95,24 +117,53 @@ export default function ImageGrid({ searchTerm = '', selectedTags = [], onTagsCh
     }
   };
 
-  // Get unique tags from all images
-  const allTags = Array.from(
-    new Set(images.flatMap((img) => img.tags))
-  ).sort();
-
-  const toggleTag = (tag: string) => {
-    // 重置为第一页
-    setCurrentPage(1);
+  // 获取所有使用中的标签，并按预设顺序排序
+  const getOrderedTags = () => {
+    // 从图片中获取所有使用中的标签集合
+    const usedTags = new Set((images as ImageItem[]).flatMap((img) => img.tags));
     
-    // 切换标签，使用父组件提供的回调来维持状态
-    if (onTagsChange) {
-      onTagsChange(selectedTags.includes(tag) ? [] : [tag]);
+    // 返回按TAG_ORDER排序的标签列表，只包含图片中实际使用的标签
+    return TAG_ORDER.filter(tag => usedTags.has(tag));
+  };
+
+  // 获取标签对应的内页链接
+  const getTagPageLink = (tag: string) => {
+    // 找到任何一个包含该标签的图片
+    const imageWithTag = (images as ImageItem[]).find(img => img.tags.includes(tag));
+    
+    // 如果图片有tag_pages属性且包含该标签，返回对应的内页链接
+    if (imageWithTag?.tag_pages && tag in imageWithTag.tag_pages) {
+      return imageWithTag.tag_pages[tag];
+    }
+    
+    // 默认链接
+    return `/?tag=${tag}`;
+  };
+
+  // 处理标签点击事件
+  const handleTagClick = (tag: string) => {
+    const tagLink = getTagPageLink(tag);
+    
+    // 如果是内部查询参数格式(/?tag=xxx)，使用筛选功能
+    if (tagLink.startsWith('/?tag=')) {
+      // 重置为第一页
+      setCurrentPage(1);
+      
+      // 切换标签，使用父组件提供的回调来维持状态
+      if (onTagsChange) {
+        onTagsChange(selectedTags.includes(tag) ? [] : [tag]);
+      }
+    } else {
+      // 否则导航到对应的内页链接
+      navigate(tagLink);
     }
   };
 
   // 使用筛选后的图片
   const filteredImages = getFilteredImages();
   const hasMoreImages = currentPage * imagesPerPage < filteredImages.length;
+  // 获取排序后的标签列表
+  const orderedTags = getOrderedTags();
 
   return (
     <>
@@ -123,10 +174,10 @@ export default function ImageGrid({ searchTerm = '', selectedTags = [], onTagsCh
           <h2 className="text-lg font-semibold text-gray-900">{t('filterByTags')}</h2>
         </div>
         <div className="flex flex-wrap gap-2">
-          {allTags.map((tag) => (
+          {orderedTags.map((tag) => (
             <button
               key={tag}
-              onClick={() => toggleTag(tag)}
+              onClick={() => handleTagClick(tag)}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                 selectedTags.includes(tag)
                   ? 'bg-blue-600 text-white shadow-md'
@@ -179,12 +230,13 @@ export default function ImageGrid({ searchTerm = '', selectedTags = [], onTagsCh
                 <p className="text-sm text-gray-700 mb-3 line-clamp-2">{image.caption}</p>
                 <div className="flex flex-wrap gap-1.5">
                   {image.tags.map((tag) => (
-                    <span
+                    <button
                       key={tag}
-                      className="px-2 py-1 bg-gray-50 rounded-md text-xs font-medium text-gray-600"
+                      onClick={() => handleTagClick(tag)}
+                      className="px-2 py-1 bg-gray-50 rounded-md text-xs font-medium text-gray-600 hover:bg-blue-50 hover:text-blue-600 transition-colors"
                     >
                       {tag}
-                    </span>
+                    </button>
                   ))}
                 </div>
               </div>
@@ -199,7 +251,7 @@ export default function ImageGrid({ searchTerm = '', selectedTags = [], onTagsCh
               onClick={loadMoreImages}
               className="px-6 py-3 bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200 transition duration-300 rounded-md font-medium shadow-sm"
             >
-              {t('loadMore')}
+              {t('loadMore')} <ChevronDown className="h-4 w-4 inline mb-0.5" />
             </button>
           </div>
         )}
