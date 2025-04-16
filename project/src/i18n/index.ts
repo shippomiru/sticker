@@ -6,7 +6,7 @@ const resources = {
   en: {
     translation: {
       search: 'Search images...',
-      filterByTags: 'Filter by tags:',
+      filterByTags: 'Trending Topics:',
       loadMore: 'Load More',
       transparentBackground: 'Transparent',
       whiteBorder: 'White Border',
@@ -18,14 +18,14 @@ const resources = {
         contact: 'Contact',
         terms: 'Terms of Service',
         privacy: 'Privacy Policy',
-        copyright: '© 2025 ImageAI. All rights reserved.',
+        copyright: '© 2025 ClipPng. All rights reserved.',
       },
     },
   },
   zh: {
     translation: {
       search: '搜索图片...',
-      filterByTags: '按标签筛选：',
+      filterByTags: '热门分类：',
       loadMore: '加载更多图片',
       transparentBackground: '透明背景',
       whiteBorder: '白色边框',
@@ -37,7 +37,7 @@ const resources = {
         contact: '联系我们',
         terms: '服务条款',
         privacy: '隐私政策',
-        copyright: '© 2025 ImageAI. 保留所有权利。',
+        copyright: '© 2025 ClipPng. 保留所有权利。',
       },
     },
   },
