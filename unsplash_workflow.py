@@ -541,20 +541,68 @@ def upload_to_r2(batch_date):
         return False, {"error": f"批次 {batch_date} 不存在"}
     
     # 检查 R2 上传工具是否配置
-    # 此处应检查 Cloudflare R2 相关凭证是否设置
-    
-    # 模拟上传过程（实际项目中应替换为真实的上传逻辑）
-    print(f"\n上传批次 {batch_date} 数据到 R2 存储")
-    print("实际项目中，此处应调用 R2 上传工具")
-    
-    # TODO: 实现实际的 R2 上传逻辑
-    # 此处应使用 Cloudflare 提供的 API 或工具进行上传
-    
-    # 模拟上传成功
-    time.sleep(2)  # 模拟上传过程
-    logger.info(f"成功上传批次 {batch_date} 数据到 R2 存储")
-    
-    return True, {"status": "模拟成功", "note": "实际项目中需替换为真实上传逻辑"}
+    try:
+        import boto3
+        # 调用实际的R2上传工具
+        logger.info(f"正在调用R2上传工具...")
+        
+        # 批次目录
+        batch_output_dir = os.path.join(PROCESSED_IMAGES_DIR, batch_date)
+        
+        # 检查批次输出目录是否存在
+        if not os.path.exists(batch_output_dir):
+            logger.error(f"批次输出目录不存在: {batch_output_dir}")
+            return False, {"error": f"批次输出目录不存在: {batch_output_dir}"}
+        
+        # 执行增量上传命令
+        cmd = ["python3", "api/processors/upload_to_r2.py", "--dir", batch_output_dir, "--auto-update"]
+        logger.info(f"执行命令: {' '.join(cmd)}")
+        
+        process = subprocess.Popen(
+            cmd, 
+            stdout=subprocess.PIPE, 
+            stderr=subprocess.PIPE,
+            universal_newlines=True
+        )
+        
+        # 实时输出处理日志
+        stdout, stderr = process.communicate()
+        
+        if process.returncode != 0:
+            logger.error(f"上传到R2失败: {stderr}")
+            return False, {"error": stderr}
+        
+        # 解析输出中的上传结果
+        success_count = 0
+        skipped_count = 0
+        failed_count = 0
+        
+        # 尝试从输出中提取上传统计信息
+        import re
+        success_match = re.search(r"成功: (\d+)", stdout)
+        if success_match:
+            success_count = int(success_match.group(1))
+            
+        skipped_match = re.search(r"跳过: (\d+)", stdout)
+        if skipped_match:
+            skipped_count = int(skipped_match.group(1))
+            
+        failed_match = re.search(r"失败: (\d+)", stdout)
+        if failed_match:
+            failed_count = int(failed_match.group(1))
+        
+        logger.info(f"成功上传批次 {batch_date} 数据到 R2 存储")
+        
+        # 返回上传结果
+        return True, {
+            "success_count": success_count,
+            "skipped_count": skipped_count,
+            "failed_count": failed_count,
+            "status": "已完成"
+        }
+    except Exception as e:
+        logger.error(f"上传到R2时出错: {str(e)}")
+        return False, {"error": str(e)}
 
 def publish_to_website(batch_date):
     """将批次数据发布到网站
@@ -579,18 +627,160 @@ def publish_to_website(batch_date):
         logger.error(f"元数据文件未找到: {metadata_file}")
         return False, {"error": "元数据文件未生成，请先生成元数据"}
     
-    # 模拟网站数据更新过程（实际项目中应替换为真实的发布逻辑）
-    print(f"\n将批次 {batch_date} 数据发布到网站")
-    print("实际项目中，此处应执行网站数据更新脚本")
-    
-    # TODO: 实现实际的网站数据更新逻辑
-    # 例如：将新的元数据合并到主数据文件，同步到前端项目，触发网站重新部署等
-    
-    # 模拟发布成功
-    time.sleep(2)  # 模拟发布过程
-    logger.info(f"成功将批次 {batch_date} 数据发布到网站")
-    
-    return True, {"status": "模拟成功", "note": "实际项目中需替换为真实发布逻辑"}
+    try:
+        # 1. 配置 merge_metadata.py 的元数据文件路径
+        # 先备份当前配置
+        with open("merge_metadata.py", "r", encoding="utf-8") as f:
+            merge_metadata_content = f.read()
+            
+        # 替换配置为当前批次
+        import re
+        new_content = re.sub(
+            r'NEW_METADATA_FILE = ".*"', 
+            f'NEW_METADATA_FILE = "{metadata_file}"',
+            merge_metadata_content
+        )
+        
+        # 保存临时修改
+        with open("merge_metadata.py", "w", encoding="utf-8") as f:
+            f.write(new_content)
+            
+        # 2. 执行元数据合并
+        logger.info(f"合并元数据文件: {metadata_file}")
+        
+        cmd = ["python3", "merge_metadata.py"]
+        logger.info(f"执行命令: {' '.join(cmd)}")
+        
+        process = subprocess.Popen(
+            cmd, 
+            stdout=subprocess.PIPE, 
+            stderr=subprocess.PIPE,
+            universal_newlines=True
+        )
+        
+        # 实时输出处理日志
+        stdout, stderr = process.communicate()
+        
+        if process.returncode != 0:
+            logger.error(f"合并元数据失败: {stderr}")
+            # 恢复原始配置
+            with open("merge_metadata.py", "w", encoding="utf-8") as f:
+                f.write(merge_metadata_content)
+            return False, {"error": stderr}
+        
+        # 3. 恢复原始配置
+        with open("merge_metadata.py", "w", encoding="utf-8") as f:
+            f.write(merge_metadata_content)
+        
+        # 4. 更新元数据URL为R2 CDN链接 
+        logger.info("更新元数据URL为R2 CDN链接...")
+        
+        cmd = ["python3", "update_metadata_urls.py"]
+        logger.info(f"执行命令: {' '.join(cmd)}")
+        
+        process = subprocess.Popen(
+            cmd, 
+            stdout=subprocess.PIPE, 
+            stderr=subprocess.PIPE,
+            universal_newlines=True
+        )
+        
+        # 实时输出处理日志
+        stdout, stderr = process.communicate()
+        
+        if process.returncode != 0:
+            logger.error(f"更新元数据URL失败: {stderr}")
+            return False, {"error": stderr}
+        
+        # 5. 解析输出中的更新结果
+        updated_count = 0
+        
+        # 尝试从输出中提取更新统计信息
+        import re
+        updated_match = re.search(r"更新的URL数量: (\d+)", stdout)
+        if updated_match:
+            updated_count = int(updated_match.group(1))
+        
+        # 6. 提交更改到GitHub
+        logger.info("将更改提交到GitHub...")
+        
+        # 获取当前日期作为提交信息
+        commit_date = datetime.now().strftime("%Y-%m-%d")
+        commit_message = f"添加批次 {batch_date} 的图片和元数据 [{commit_date}]"
+        
+        # 检查git状态
+        git_status_cmd = ["git", "status", "--porcelain"]
+        git_status_process = subprocess.Popen(
+            git_status_cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            universal_newlines=True
+        )
+        git_status_stdout, git_status_stderr = git_status_process.communicate()
+        
+        if not git_status_stdout:
+            logger.info("没有需要提交的更改")
+        else:
+            # 有更改需要提交
+            logger.info(f"发现需要提交的更改: \n{git_status_stdout}")
+            
+            # 添加所有更改
+            git_add_cmd = ["git", "add", "."]
+            git_add_process = subprocess.Popen(
+                git_add_cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                universal_newlines=True
+            )
+            git_add_stdout, git_add_stderr = git_add_process.communicate()
+            
+            if git_add_process.returncode != 0:
+                logger.error(f"git add 失败: {git_add_stderr}")
+                return False, {"error": f"git add 失败: {git_add_stderr}"}
+            
+            # 提交更改
+            git_commit_cmd = ["git", "commit", "-m", commit_message]
+            git_commit_process = subprocess.Popen(
+                git_commit_cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                universal_newlines=True
+            )
+            git_commit_stdout, git_commit_stderr = git_commit_process.communicate()
+            
+            if git_commit_process.returncode != 0:
+                logger.error(f"git commit 失败: {git_commit_stderr}")
+                return False, {"error": f"git commit 失败: {git_commit_stderr}"}
+            
+            logger.info(f"成功提交更改: {git_commit_stdout}")
+            
+            # 推送到远程仓库
+            git_push_cmd = ["git", "push", "origin", "main"]
+            git_push_process = subprocess.Popen(
+                git_push_cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                universal_newlines=True
+            )
+            git_push_stdout, git_push_stderr = git_push_process.communicate()
+            
+            if git_push_process.returncode != 0:
+                logger.error(f"git push 失败: {git_push_stderr}")
+                return False, {"error": f"git push 失败: {git_push_stderr}"}
+            
+            logger.info("成功推送更改到GitHub")
+        
+        logger.info(f"成功将批次 {batch_date} 数据发布到网站")
+        
+        # 返回发布结果
+        return True, {
+            "status": "已完成",
+            "updated_count": updated_count,
+            "git_committed": len(git_status_stdout) > 0
+        }
+    except Exception as e:
+        logger.error(f"发布到网站时出错: {str(e)}")
+        return False, {"error": str(e)}
 
 # 命令行处理
 def main():

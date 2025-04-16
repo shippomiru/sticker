@@ -73,7 +73,7 @@ def upload_file(client, local_path, s3_key, content_type="image/png"):
         return False
 
 
-def upload_directory(client, local_directory, prefix="", limit=None):
+def upload_directory(client, local_directory, prefix="", limit=None, incremental=True):
     """上传整个目录到R2存储桶
     
     Args:
@@ -81,13 +81,31 @@ def upload_directory(client, local_directory, prefix="", limit=None):
         local_directory: 本地图片目录
         prefix: 对象前缀
         limit: 限制上传的图片数量，用于测试
+        incremental: 是否增量上传（只上传不存在的文件）
     """
     success_count = 0
     failed_count = 0
+    skipped_count = 0
     
     if not os.path.exists(local_directory):
         print(f"目录不存在: {local_directory}")
-        return success_count, failed_count
+        return success_count, failed_count, skipped_count
+    
+    # 如果启用增量上传，获取存储桶中现有文件列表
+    existing_files = set()
+    if incremental:
+        try:
+            print("正在获取存储桶中的现有文件列表...")
+            paginator = client.get_paginator('list_objects_v2')
+            for page in paginator.paginate(Bucket=r2_bucket_name):
+                if 'Contents' in page:
+                    for obj in page['Contents']:
+                        existing_files.add(obj['Key'])
+            print(f"存储桶中共有 {len(existing_files)} 个文件")
+        except Exception as e:
+            print(f"获取存储桶文件列表失败: {e}")
+            print("将上传所有文件而不进行增量检查")
+            incremental = False
     
     for root, dirs, files in os.walk(local_directory):
         png_files = [f for f in files if f.endswith('.png')]
@@ -108,6 +126,12 @@ def upload_directory(client, local_directory, prefix="", limit=None):
                 relative_path = os.path.relpath(local_path, local_directory)
                 s3_key = relative_path.replace("\\", "/")
             
+            # 检查文件是否已存在于存储桶中
+            if incremental and s3_key in existing_files:
+                print(f"跳过已存在的文件: {s3_key}")
+                skipped_count += 1
+                continue
+            
             if upload_file(client, local_path, s3_key):
                 success_count += 1
             else:
@@ -118,7 +142,7 @@ def upload_directory(client, local_directory, prefix="", limit=None):
                 print(f"已达到测试限制（{limit}张图片），停止上传")
                 break
     
-    return success_count, failed_count
+    return success_count, failed_count, skipped_count
 
 
 def update_metadata_with_r2_urls(images_json_path="api/data/images.json"):
@@ -189,21 +213,21 @@ def upload_batch(client, batch_date, auto_update_metadata=False):
     batch_dir = os.path.join(PROCESSED_IMAGES_DIR, batch_date)
     if not os.path.exists(batch_dir):
         print(f"批次目录不存在: {batch_dir}")
-        return 0, 0
+        return 0, 0, 0
     
     print(f"\n正在上传批次 {batch_date} 的图片...")
     # 使用批次日期作为前缀
     prefix = f"batches/{batch_date}"
-    success, failed = upload_directory(client, batch_dir, prefix=prefix)
+    success, failed, skipped = upload_directory(client, batch_dir, prefix=prefix)
     
-    print(f"批次 {batch_date} 上传完成! 成功: {success}, 失败: {failed}")
+    print(f"批次 {batch_date} 上传完成! 成功: {success}, 失败: {failed}, 跳过: {skipped}")
     
     # 如果需要，自动更新元数据
     if auto_update_metadata and success > 0:
         print("正在更新元数据中的URL...")
         update_metadata_with_r2_urls()
     
-    return success, failed
+    return success, failed, skipped
 
 
 def clear_bucket(client):
@@ -266,6 +290,7 @@ def main():
     parser.add_argument('--test', action='store_true', help='测试模式，仅上传少量图片')
     parser.add_argument('--auto-update', action='store_true', help='自动更新元数据URL')
     parser.add_argument('--clear', action='store_true', help='清空R2存储桶')
+    parser.add_argument('--force', action='store_true', help='强制上传所有文件，不执行增量检查')
     
     args = parser.parse_args()
     
@@ -288,6 +313,9 @@ def main():
             print("存储桶已成功清空")
         return 0
     
+    # 是否执行增量上传
+    incremental = not args.force
+    
     # 确定上传文件夹
     if args.batch:
         # 上传指定批次的图片
@@ -296,22 +324,28 @@ def main():
         # 上传指定目录的图片
         images_dir = args.dir
         print(f"\n开始上传 {images_dir} 目录到 {r2_bucket_name} 存储桶...")
-        success, failed = upload_directory(
+        if not incremental:
+            print("注意：已启用强制上传模式，将上传所有文件")
+        success, failed, skipped = upload_directory(
             s3_client, 
             images_dir, 
-            limit=10 if args.test else None
+            limit=10 if args.test else None,
+            incremental=incremental
         )
-        print(f"上传完成! 成功: {success}, 失败: {failed}")
+        print(f"上传完成! 成功: {success}, 失败: {failed}, 跳过: {skipped}")
     else:
         # 默认上传前端展示目录的图片
         images_dir = PROJECT_IMAGES_DIR
         print(f"\n开始上传 {images_dir} 目录到 {r2_bucket_name} 存储桶...")
-        success, failed = upload_directory(
+        if not incremental:
+            print("注意：已启用强制上传模式，将上传所有文件")
+        success, failed, skipped = upload_directory(
             s3_client, 
             images_dir, 
-            limit=10 if args.test else None
+            limit=10 if args.test else None,
+            incremental=incremental
         )
-        print(f"上传完成! 成功: {success}, 失败: {failed}")
+        print(f"上传完成! 成功: {success}, 失败: {failed}, 跳过: {skipped}")
     
     # 如果需要，更新元数据中的URL
     if not args.auto_update and input("\n是否更新元数据文件中的URL为R2 CDN URL? (y/n): ").lower() == 'y':
