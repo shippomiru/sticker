@@ -269,7 +269,7 @@ export default function ImageGrid({ searchTerm = '', selectedTags = [], onTagsCh
                 <p className="text-sm text-gray-500 mt-3">{t('loadingMore')}</p>
               </div>
             ) : (
-              <p className="text-sm text-gray-500">{t('noMoreImages')}</p>
+              <div></div>
             )}
           </div>
         )}
@@ -281,9 +281,6 @@ export default function ImageGrid({ searchTerm = '', selectedTags = [], onTagsCh
               <Search className="h-8 w-8 text-gray-400" />
             </div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">{t('noResultsFound')}</h3>
-            <p className="text-gray-500 text-center max-w-md">
-              {t('tryDifferentSearch')}
-            </p>
           </div>
         )}
       </main>
