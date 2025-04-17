@@ -7,19 +7,21 @@ Unsplash 图片处理工作流
 此脚本整合了从 Unsplash 获取图片到最终发布的完整流程：
 1. 从 Unsplash API 获取指定 ID 或关键词的图片
 2. 导入图片到批次并运行图像处理
-3. 提供人工验收环节
-4. 生成/更新元数据
-5. 压缩PNG图片以减小体积
+3. 压缩PNG图片以减小体积
+4. 提供人工验收环节
+5. 生成/更新元数据
 6. 上传到 R2 存储
 7. 更新网站数据
 
 使用方法:
   python3 unsplash_workflow.py start --id ID1,ID2,... [--batch YYYYMMDD]
   python3 unsplash_workflow.py start --query "search term" --count 5 [--batch YYYYMMDD]
-  python3 unsplash_workflow.py verify --batch YYYYMMDD
-  python3 unsplash_workflow.py publish --batch YYYYMMDD
+  python3 unsplash_workflow.py process --batch YYYYMMDD
   python3 unsplash_workflow.py compress --batch YYYYMMDD [--method both|oxipng|pngquant] [--quality 80]
+  python3 unsplash_workflow.py verify --batch YYYYMMDD
+  python3 unsplash_workflow.py metadata --batch YYYYMMDD
   python3 unsplash_workflow.py upload-r2 --batch YYYYMMDD
+  python3 unsplash_workflow.py publish --batch YYYYMMDD
 """
 
 import os
@@ -163,7 +165,20 @@ def get_next_stage(current_stage):
     try:
         current_index = WORKFLOW_STAGES.index(current_stage)
         if current_index < len(WORKFLOW_STAGES) - 1:
-            return WORKFLOW_STAGES[current_index + 1]
+            next_stage = WORKFLOW_STAGES[current_index + 1]
+            
+            # 将工作流阶段名称转换为对应的命令名称
+            stage_to_command = {
+                "imported": "start",
+                "processed": "process",
+                "compressed": "compress",
+                "verified": "verify",
+                "metadata_added": "metadata",
+                "uploaded_r2": "upload-r2",
+                "published": "publish"
+            }
+            
+            return stage_to_command.get(next_stage, next_stage)
     except ValueError:
         pass
     
@@ -868,6 +883,14 @@ def main():
     process_parser = subparsers.add_parser('process', help='处理批次中的图片')
     process_parser.add_argument('--batch', required=True, help='批次日期 (YYYYMMDD 格式)')
     
+    # 压缩图片命令
+    compress_parser = subparsers.add_parser('compress', help='压缩批次中的PNG图片')
+    compress_parser.add_argument('--batch', required=True, help='批次日期 (YYYYMMDD 格式)')
+    compress_parser.add_argument('--method', choices=['oxipng', 'pngquant', 'both'], default='both',
+                              help='压缩方法，默认为both')
+    compress_parser.add_argument('--quality', type=int, default=80, help='pngquant质量(0-100)，默认80')
+    compress_parser.add_argument('--oxipng-level', type=int, default=2, help='oxipng压缩级别(0-6)，默认2')
+    
     # 验证图片命令
     verify_parser = subparsers.add_parser('verify', help='人工验收批次中的图片')
     verify_parser.add_argument('--batch', required=True, help='批次日期 (YYYYMMDD 格式)')
@@ -876,15 +899,7 @@ def main():
     metadata_parser = subparsers.add_parser('metadata', help='生成批次图片的元数据')
     metadata_parser.add_argument('--batch', required=True, help='批次日期 (YYYYMMDD 格式)')
     
-    # 压缩图片命令 - 新增
-    compress_parser = subparsers.add_parser('compress', help='压缩批次中的PNG图片')
-    compress_parser.add_argument('--batch', required=True, help='批次日期 (YYYYMMDD 格式)')
-    compress_parser.add_argument('--method', choices=['oxipng', 'pngquant', 'both'], default='both',
-                              help='压缩方法，默认为both')
-    compress_parser.add_argument('--quality', type=int, default=80, help='pngquant质量(0-100)，默认80')
-    compress_parser.add_argument('--oxipng-level', type=int, default=2, help='oxipng压缩级别(0-6)，默认2')
-    
-    # 复制到public目录命令 - 新增
+    # 复制到public目录命令
     copy_parser = subparsers.add_parser('copy-to-public', help='将批次图片复制到public/images目录')
     copy_parser.add_argument('--batch', required=True, help='批次日期 (YYYYMMDD 格式)')
     

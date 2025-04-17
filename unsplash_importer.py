@@ -203,11 +203,20 @@ def get_photo_by_id(photo_id):
         logger.error(f"获取图片信息时发生错误: {e}")
         return None
 
-def search_photos(query, per_page=10):
-    """搜索 Unsplash 图片"""
+def search_photos(query, per_page=10, page=1):
+    """搜索 Unsplash 图片
+    
+    Args:
+        query: 搜索关键词
+        per_page: 每页结果数，默认10
+        page: 页码，默认1
+        
+    Returns:
+        list: 图片数据列表
+    """
     if not UNSPLASH_ACCESS_KEY:
         logger.error("缺少 Unsplash API 访问密钥")
-        return None
+        return []
     
     headers = {
         'Authorization': f'Client-ID {UNSPLASH_ACCESS_KEY}'
@@ -216,7 +225,7 @@ def search_photos(query, per_page=10):
     params = {
         'query': query,
         'per_page': per_page,
-        'page': 1
+        'page': page
     }
     
     try:
@@ -227,15 +236,23 @@ def search_photos(query, per_page=10):
         
         if response.status_code == 200:
             search_data = response.json()
-            logger.info(f"成功搜索图片，找到 {search_data['total']} 条结果")
-            return search_data['results']
+            photos = search_data.get('results', [])
+            total_pages = search_data.get('total_pages', 0)
+            total_results = search_data.get('total', 0)
+            
+            logger.info(f"搜索 '{query}' 成功，找到 {total_results} 个结果，共 {total_pages} 页")
+            return photos, total_pages, total_results
+        elif response.status_code == 429:
+            logger.error(f"API速率限制，请稍后再试")
+            return [], 0, 0
         else:
             logger.error(f"搜索图片失败，状态码: {response.status_code}")
             logger.error(response.text)
-            return None
+            return [], 0, 0
+    
     except Exception as e:
-        logger.error(f"搜索图片时发生错误: {e}")
-        return None
+        logger.error(f"搜索图片时出错: {str(e)}")
+        return [], 0, 0
 
 def download_photo(photo_data, save_dir):
     """下载 Unsplash 图片
@@ -368,11 +385,11 @@ def import_photos_by_ids(photo_ids, batch_dir):
     return imported_paths
 
 def import_photos_by_query(query, count, batch_dir):
-    """通过关键词搜索导入 Unsplash 图片
+    """通过关键词搜索导入 Unsplash 图片，确保获取到指定数量的新图片
     
     Args:
         query: 搜索关键词
-        count: 导入数量
+        count: 需要导入的新图片数量
         batch_dir: 批次目录
         
     Returns:
@@ -380,46 +397,85 @@ def import_photos_by_query(query, count, batch_dir):
     """
     ensure_dir_exists(batch_dir)
     
-    # 搜索图片
-    search_results = search_photos(query, per_page=count)
-    if not search_results:
-        logger.error(f"搜索 '{query}' 未找到结果")
-        return []
-    
-    # 提取图片数据
-    photo_data_list = search_results[:count]
-    logger.info(f"找到 {len(photo_data_list)} 张匹配 '{query}' 的图片")
-    
-    # 导入图片
+    # 导入统计
     imported_paths = []
     skipped_count = 0
     failed_count = 0
+    total_attempts = 0
     
-    for photo_data in photo_data_list:
-        photo_id = photo_data['id']
+    # API调用限制监控
+    api_limit_reached = False
+    
+    # 初始化分页参数
+    current_page = 1
+    per_page = min(30, count)  # 每页获取数量，Unsplash官方建议最大30
+    
+    # 当还需要更多图片且没有达到API限制时继续获取
+    while len(imported_paths) < count and not api_limit_reached and total_attempts < 100:
+        logger.info(f"尝试获取第{current_page}页搜索结果，每页{per_page}张图片")
         
-        # 检查是否已存在
-        exists, existing_path = check_id_exists(photo_id)
-        if exists:
-            logger.info(f"图片 {photo_id} 已存在: {existing_path}")
-            skipped_count += 1
-            continue
+        # 搜索图片
+        photo_data_list, total_pages, total_results = search_photos(query, per_page=per_page, page=current_page)
         
-        # 添加延迟，遵循 API 限制
-        time.sleep(1)
+        # 检查是否到达结果末尾或API限制
+        if not photo_data_list:
+            if total_pages == 0 and total_results == 0:
+                logger.error(f"可能已达到API限制或搜索无结果")
+                api_limit_reached = True
+                break
+            elif current_page > total_pages:
+                logger.info(f"已浏览完所有搜索结果（共{total_pages}页）")
+                break
         
-        # 下载图片
-        file_path = download_photo(photo_data, batch_dir)
-        if file_path:
-            imported_paths.append(file_path)
-        else:
-            failed_count += 1
+        logger.info(f"找到第{current_page}页的 {len(photo_data_list)} 张匹配 '{query}' 的图片")
+        
+        # 导入图片
+        for photo_data in photo_data_list:
+            total_attempts += 1
+            photo_id = photo_data['id']
+            
+            # 检查是否已存在
+            exists, existing_path = check_id_exists(photo_id)
+            if exists:
+                logger.info(f"图片 {photo_id} 已存在: {existing_path}")
+                skipped_count += 1
+                continue
+            
+            # 添加延迟，遵循 API 限制
+            time.sleep(1)
+            
+            # 下载图片
+            file_path = download_photo(photo_data, batch_dir)
+            if file_path:
+                imported_paths.append(file_path)
+                if len(imported_paths) >= count:
+                    break  # 已获取足够数量，退出循环
+            else:
+                failed_count += 1
+        
+        # 如果已经获取到足够数量，或者已到达搜索结果末尾，退出循环
+        if len(imported_paths) >= count or current_page >= total_pages:
+            break
+        
+        # 继续下一页
+        current_page += 1
+    
+    # 记录API限制情况
+    if api_limit_reached:
+        logger.warning(f"由于Unsplash API限制，无法获取更多图片。已获取: {len(imported_paths)}/{count}")
     
     # 输出总结
     logger.info(f"导入完成:")
-    logger.info(f"- 成功导入: {len(imported_paths)} 张图片")
+    logger.info(f"- 成功导入: {len(imported_paths)} 张新图片")
     logger.info(f"- 已存在跳过: {skipped_count} 张图片")
     logger.info(f"- 导入失败: {failed_count} 张图片")
+    logger.info(f"- 总尝试数: {total_attempts} 张图片")
+    
+    if len(imported_paths) < count:
+        if api_limit_reached:
+            logger.warning(f"由于API限制，未能获取到要求的{count}张新图片")
+        else:
+            logger.warning(f"无法获取到足够的新图片，可能是因为大多数搜索结果已存在或搜索结果总数不足")
     
     return imported_paths
 
