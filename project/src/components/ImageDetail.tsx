@@ -125,20 +125,20 @@ export function ImageDetail({ onClose }: ImageDetailProps) {
         <meta name="description" content={seoDescription} />
         <link rel="canonical" href={`https://clippng.online/${slug}`} />
       </Helmet>
-      <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-6">
-        <div className="relative w-full max-w-7xl bg-gradient-to-b from-gray-50 to-white rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col lg:flex-row">
+      <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4 md:p-6">
+        <div className="relative w-full max-w-7xl bg-gradient-to-b from-gray-50 to-white rounded-xl sm:rounded-2xl shadow-2xl overflow-hidden max-h-[95vh] sm:max-h-[90vh] flex flex-col lg:flex-row">
           {/* 关闭按钮 */}
           <button
             onClick={handleClose}
-            className="absolute top-8 right-8 z-10"
+            className="absolute top-4 right-4 sm:top-6 sm:right-6 md:top-8 md:right-8 z-10 p-1.5 bg-white/80 backdrop-blur-sm rounded-full shadow-sm"
             aria-label="Close"
           >
-            <X className="h-5 w-5 text-gray-600 hover:text-gray-900 transition-colors" />
+            <X className="h-4 w-4 sm:h-5 sm:w-5 text-gray-600 hover:text-gray-900 transition-colors" />
           </button>
 
           {/* 图片预览区域 */}
           <div className="w-full lg:w-2/3 bg-gradient-to-br from-gray-50 to-white">
-            <div className={`relative w-full h-full flex items-center justify-center p-8 lg:p-16 ${bgColor} transition-colors duration-300`}>
+            <div className={`relative w-full h-[40vh] sm:h-[50vh] lg:h-full flex items-center justify-center p-4 sm:p-6 md:p-8 lg:p-16 ${bgColor} transition-colors duration-300`}>
               <img
                 key={currentImageUrl}
                 src={currentImageUrl}
@@ -149,32 +149,32 @@ export function ImageDetail({ onClose }: ImageDetailProps) {
               />
               {!imageLoaded && (
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+                  <div className="animate-spin rounded-full h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12 border-t-2 border-b-2 border-blue-500"></div>
                 </div>
               )}
             </div>
           </div>
 
           {/* 右侧内容区域 */}
-          <div className="relative w-full lg:w-1/3 flex flex-col h-[40vh] lg:h-[90vh] bg-white border-l border-gray-100">
-            <div className="p-6 lg:p-10 flex-grow overflow-y-auto">
+          <div className="relative w-full lg:w-1/3 flex flex-col h-[55vh] sm:h-[40vh] lg:h-[90vh] bg-white border-t lg:border-t-0 lg:border-l border-gray-100">
+            <div className="p-4 sm:p-6 md:p-8 lg:p-10 flex-grow overflow-y-auto">
               <div className="max-w-sm">
-                <h1 className="text-2xl font-semibold text-gray-900 mb-4 pr-12">
+                <h1 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-3 sm:mb-4 pr-8 sm:pr-12">
                   {image.caption}
                 </h1>
-                <div className="space-y-4">
-                  <p className="text-gray-600 leading-relaxed">
+                <div className="space-y-3 sm:space-y-4">
+                  <p className="text-sm sm:text-base text-gray-600 leading-relaxed">
                     High quality free PNG image with transparent background, perfect for presentations, video editing, journaling, and creative design.
                   </p>
-                  <p className="text-gray-600 leading-relaxed">
+                  <p className="text-sm sm:text-base text-gray-600 leading-relaxed">
                     Try the sticker version to add charm to your planners, scrapbooks, or collages.
                   </p>
                 </div>
-                <div className="flex flex-wrap gap-2 mt-8">
+                <div className="flex flex-wrap gap-1.5 sm:gap-2 mt-6 sm:mt-8">
                   {image.tags.map((tag) => (
                     <span
                       key={tag}
-                      className="px-3 py-1.5 bg-gray-50 rounded-full text-sm font-medium text-gray-600"
+                      className="px-2.5 py-1 sm:px-3 sm:py-1.5 bg-gray-50 rounded-full text-xs sm:text-sm font-medium text-gray-600"
                     >
                       {tag}
                     </span>
@@ -184,8 +184,8 @@ export function ImageDetail({ onClose }: ImageDetailProps) {
             </div>
 
             {/* 样式选择和下载 */}
-            <div className="p-6 lg:p-10 space-y-6 bg-white">
-              <div className="grid grid-cols-2 gap-3">
+            <div className="p-4 sm:p-6 md:p-8 lg:p-10 space-y-4 sm:space-y-6 bg-white">
+              <div className="grid grid-cols-2 gap-2 sm:gap-3">
                 <button
                   onClick={() => {
                     setSelectedStyle('transparent');
@@ -193,7 +193,7 @@ export function ImageDetail({ onClose }: ImageDetailProps) {
                       trackStyleSelection(image.id, 'transparent');
                     }
                   }}
-                  className={`px-4 py-2.5 text-sm font-medium rounded-xl transition-all duration-300 ${
+                  className={`px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium rounded-lg sm:rounded-xl transition-all duration-300 ${
                     selectedStyle === 'transparent'
                       ? 'bg-blue-600 text-white shadow-sm'
                       : 'bg-gray-50 text-gray-600 hover:bg-gray-100 hover:text-gray-900'
@@ -208,7 +208,7 @@ export function ImageDetail({ onClose }: ImageDetailProps) {
                       trackStyleSelection(image.id, 'outlined');
                     }
                   }}
-                  className={`px-4 py-2.5 text-sm font-medium rounded-xl transition-all duration-300 ${
+                  className={`px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium rounded-lg sm:rounded-xl transition-all duration-300 ${
                     selectedStyle === 'outlined'
                       ? 'bg-blue-600 text-white shadow-sm'
                       : 'bg-gray-50 text-gray-600 hover:bg-gray-100 hover:text-gray-900'
@@ -219,13 +219,13 @@ export function ImageDetail({ onClose }: ImageDetailProps) {
               </div>
               <button
                 onClick={handleDownload}
-                className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-300 shadow-sm hover:shadow"
+                className="w-full flex items-center justify-center gap-2 px-4 sm:px-6 py-3 sm:py-3.5 bg-blue-600 text-white rounded-lg sm:rounded-xl hover:bg-blue-700 transition-all duration-300 shadow-sm hover:shadow"
               >
-                <ArrowDown className="h-5 w-5" />
-                <span className="font-medium">{t('downloadImage')}</span>
+                <ArrowDown className="h-4 w-4 sm:h-5 sm:w-5" />
+                <span className="text-sm sm:text-base font-medium">{t('downloadImage')}</span>
               </button>
               <div className="text-center">
-                <p className="text-xs text-gray-300 mt-3">
+                <p className="text-[10px] sm:text-xs text-gray-300 mt-2 sm:mt-3">
                   Photo by {image.author} on Unsplash
                 </p>
               </div>

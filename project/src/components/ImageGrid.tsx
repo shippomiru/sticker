@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowDown, Tags, ChevronDown } from 'lucide-react';
+import { ArrowDown, Tags, ChevronDown, Filter, Search } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import images from '../data/images.json';
 import { useNavigate } from 'react-router-dom';
@@ -16,8 +16,10 @@ export default function ImageGrid({ searchTerm = '', selectedTags = [], onTagsCh
   const { t } = useTranslation();
   const [displayedImages, setDisplayedImages] = useState<typeof images>([]);
   const [currentPage, setCurrentPage] = useState(1);
+  const [showTagsOnMobile, setShowTagsOnMobile] = useState(false);
   const imagesPerPage = 24; // 每页显示24张图片
   const navigate = useNavigate();
+  const loadMoreRef = useRef<HTMLDivElement>(null);
 
   // 检查图片URL格式，确保所有URL都有/images/前缀
   const fixImageUrl = (url: string) => {
@@ -75,50 +77,30 @@ export default function ImageGrid({ searchTerm = '', selectedTags = [], onTagsCh
 
   const handleDownload = async (url: string, e: React.MouseEvent) => {
     e.preventDefault();
-    e.stopPropagation(); // 阻止事件冒泡，防止触发Link跳转
-    
     try {
-      console.log('开始下载图片:', url);
-      
       // 找到对应的图片对象，以获取ID
-      const normalizedUrl = url.includes('/images/') ? url : fixImageUrl(url);
-      const imageObj = images.find(img => 
-        fixImageUrl(img.png_url) === normalizedUrl || 
-        img.png_url === normalizedUrl || 
-        img.png_url === url);
-      
+      const imageObj = images.find(img => img.png_url === url || fixImageUrl(img.png_url) === url);
       if (imageObj) {
         // 记录下载事件
-        trackDownload(imageObj.id, url.includes('outlined') ? 'outlined' : 'transparent');
-        console.log('找到匹配图片:', imageObj.caption);
-      } else {
-        console.error('未找到匹配图片对象');
+        trackDownload(imageObj.id, url === imageObj.sticker_url ? 'outlined' : 'transparent');
       }
       
       const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
       const blob = await response.blob();
       const blobUrl = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = blobUrl;
       
-      // 生成文件名
-      const fileName = imageObj 
-        ? `${imageObj.caption}-transparent.png` 
-        : url.split('/').pop() || 'image.png';
+      // 找到对应的图片对象，以获取 caption
+      const fileName = imageObj ? `${imageObj.caption}-transparent.png` : 'image.png';
       
       link.download = fileName;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(blobUrl);
-      console.log('下载完成:', fileName);
     } catch (error) {
-      console.error('下载失败:', error);
-      alert('下载图片失败，请稍后重试');
+      console.error('Download failed:', error);
     }
   };
 
@@ -149,37 +131,79 @@ export default function ImageGrid({ searchTerm = '', selectedTags = [], onTagsCh
   const filteredImages = getFilteredImages();
   const hasMoreImages = currentPage * imagesPerPage < filteredImages.length;
 
+  // 使用IntersectionObserver监听"加载更多"按钮
+  useEffect(() => {
+    // 如果没有更多图片可加载，则不需要监听
+    if (!hasMoreImages || !loadMoreRef.current) return;
+    
+    const observer = new IntersectionObserver((entries) => {
+      // 当"加载更多"按钮进入视口时，自动加载更多图片
+      if (entries[0].isIntersecting) {
+        loadMoreImages();
+      }
+    }, { 
+      rootMargin: '0px 0px 300px 0px', // 当元素距离视口底部300px时触发
+      threshold: 0.1 
+    });
+    
+    observer.observe(loadMoreRef.current);
+    
+    return () => {
+      if (loadMoreRef.current) {
+        observer.unobserve(loadMoreRef.current);
+      }
+    };
+  }, [loadMoreRef.current, hasMoreImages, currentPage]);
+
   return (
     <>
-      {/* Tags */}
-      <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6">
-        <div className="flex items-center space-x-2 mb-4">
-          <Tags className="h-5 w-5 text-blue-600" />
-          <h2 className="text-lg font-semibold text-gray-900">{t('filterByTags')}</h2>
+      {/* Tags - 标签部分移动端可折叠 */}
+      <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center space-x-2">
+            <Tags className="h-5 w-5 text-blue-600" />
+            <h2 className="text-lg font-semibold text-gray-900">{t('filterByTags')}</h2>
+          </div>
+          
+          {/* 移动端展开/折叠按钮 */}
+          <button 
+            className="md:hidden flex items-center text-sm text-gray-700 hover:text-blue-600"
+            onClick={() => setShowTagsOnMobile(!showTagsOnMobile)}
+          >
+            <Filter className="h-4 w-4 mr-1" />
+            <span>{showTagsOnMobile ? t('hideTags') : t('showTags')}</span>
+            <ChevronDown 
+              className={`h-4 w-4 ml-1 transition-transform ${showTagsOnMobile ? 'rotate-180' : ''}`}
+            />
+          </button>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {allTags.map((tag) => (
-            <button
-              key={tag}
-              onClick={() => toggleTag(tag)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                selectedTags.includes(tag)
-                  ? 'bg-blue-600 text-white shadow-md'
-                  : 'bg-white text-gray-700 hover:bg-blue-50 hover:text-blue-600 border border-gray-200'
-              }`}
-            >
-              {tag}
-            </button>
-          ))}
+        
+        <div className={`${showTagsOnMobile ? 'max-h-64' : 'max-h-0 md:max-h-none'} overflow-y-auto md:overflow-visible transition-all duration-300 ease-in-out md:max-h-none`}>
+          <div className="flex flex-wrap gap-2 mb-2">
+            {allTags.map((tag) => (
+              <button
+                key={tag}
+                onClick={() => toggleTag(tag)}
+                className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-sm font-medium transition-all ${
+                  selectedTags.includes(tag)
+                    ? 'bg-blue-600 text-white shadow-md'
+                    : 'bg-white text-gray-700 hover:bg-blue-50 hover:text-blue-600 border border-gray-200'
+                }`}
+              >
+                {tag}
+              </button>
+            ))}
+          </div>
         </div>
+        
         <div className="mt-4 text-sm text-gray-500">
           {t('foundImages', { count: filteredImages.length })}
         </div>
       </div>
 
-      {/* Image Grid */}
-      <main className="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+      {/* Image Grid - 响应式网格 */}
+      <main className="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 md:gap-8">
           {displayedImages.map((image) => (
             <div
               key={image.id}
@@ -199,45 +223,70 @@ export default function ImageGrid({ searchTerm = '', selectedTags = [], onTagsCh
                     target.onerror = null; // 防止无限循环
                     target.src = '/placeholder-image.png'; // 使用一个占位图像
                   }}
-                  onLoad={() => console.log(`成功加载图片: ${image.png_url}`)}
+                  loading="lazy" // 添加懒加载
                 />
                 <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center backdrop-blur-[2px]">
                   <button 
-                    className="p-3 bg-white/90 backdrop-blur rounded-xl hover:bg-white transition-all duration-300 shadow-lg transform translate-y-2 group-hover:translate-y-0 group-hover:scale-105"
+                    className="p-2 sm:p-3 bg-white/90 backdrop-blur rounded-xl hover:bg-white transition-all duration-300 shadow-lg transform translate-y-2 group-hover:translate-y-0 group-hover:scale-105"
                     onClick={(e) => handleDownload(image.png_url, e)}
-                    aria-label="下载图片"
-                    type="button"
                   >
-                    <ArrowDown className="h-5 w-5 text-gray-900" />
+                    <ArrowDown className="h-4 w-4 sm:h-5 sm:w-5 text-gray-900" />
                   </button>
                 </div>
               </Link>
-              <div className="p-4">
-                <p className="text-sm text-gray-700 mb-3 line-clamp-2">{image.caption}</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {image.tags.map((tag) => (
+              <div className="p-3 sm:p-4">
+                <p className="text-xs sm:text-sm text-gray-700 mb-2 sm:mb-3 line-clamp-2">{image.caption}</p>
+                <div className="flex flex-wrap gap-1 sm:gap-1.5">
+                  {image.tags.slice(0, 3).map((tag) => (
                     <span
                       key={tag}
-                      className="px-2 py-1 bg-gray-50 rounded-md text-xs font-medium text-gray-600"
+                      className="px-1.5 py-0.5 sm:px-2 sm:py-1 bg-gray-50 rounded-md text-xs font-medium text-gray-600"
                     >
                       {tag}
                     </span>
                   ))}
+                  {image.tags.length > 3 && (
+                    <span className="px-1.5 py-0.5 sm:px-2 sm:py-1 bg-gray-50 rounded-md text-xs font-medium text-gray-500">
+                      +{image.tags.length - 3}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
           ))}
         </div>
+
+        {/* 加载更多区域 - 无限滚动 */}
+        {filteredImages.length > 0 && (
+          <div 
+            ref={loadMoreRef}
+            className="mt-12 flex flex-col items-center justify-center"
+          >
+            {hasMoreImages ? (
+              <div className="text-center">
+                <div className="animate-pulse flex items-center justify-center space-x-2">
+                  <div className="h-2 w-2 bg-blue-600 rounded-full"></div>
+                  <div className="h-2 w-2 bg-blue-600 rounded-full"></div>
+                  <div className="h-2 w-2 bg-blue-600 rounded-full"></div>
+                </div>
+                <p className="text-sm text-gray-500 mt-3">{t('loadingMore')}</p>
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500">{t('noMoreImages')}</p>
+            )}
+          </div>
+        )}
         
-        {/* 底部加载更多按钮 */}
-        {hasMoreImages && (
-          <div className="flex justify-center mt-8 mb-12">
-            <button
-              onClick={loadMoreImages}
-              className="px-6 py-3 bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200 transition duration-300 rounded-md font-medium shadow-sm"
-            >
-              {t('loadMore')}
-            </button>
+        {/* 无结果提示 */}
+        {filteredImages.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-16">
+            <div className="bg-gray-100 rounded-full p-6 mb-4">
+              <Search className="h-8 w-8 text-gray-400" />
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">{t('noResultsFound')}</h3>
+            <p className="text-gray-500 text-center max-w-md">
+              {t('tryDifferentSearch')}
+            </p>
           </div>
         )}
       </main>
