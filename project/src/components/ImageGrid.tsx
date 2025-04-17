@@ -192,9 +192,10 @@ export default function ImageGrid({ searchTerm = '', selectedTags = [], onTagsCh
           </div>
         </div>
         
-        <div className="mt-4 text-sm text-gray-500">
+        {/* 暂时注释掉图片数量显示，因为网站图片太少 */}
+        {/* <div className="mt-4 text-sm text-gray-500">
           {t('foundImages', { count: filteredImages.length })}
-        </div>
+        </div> */}
       </div>
 
       {/* Image Grid - 响应式网格 */}
