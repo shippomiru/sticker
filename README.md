@@ -123,20 +123,47 @@ free-png/
    - 从JPG图片中提取主体，生成透明背景PNG
    - 创建带白色边框的PNG图片变体
    - 智能裁剪，确保主体居中
+   - 压缩PNG图片降低体积
+   - 人工验收确保质量
 
-   批次处理支持：
+   完整处理流程：
    ```bash
-   # 创建新批次
+   # 1. 创建新批次
    python3 batch_manager.py create [--date YYYYMMDD]
 
-   # 导入图片到批次
+   # 2. 导入图片到批次
    python3 batch_manager.py import SOURCE_DIR --batch YYYYMMDD
-
-   # 处理批次图片
+   
+   # 3. 处理批次图片（抠图、裁剪、添加白边）
    python3 process_images.py --batch YYYYMMDD
+   
+   # 4. 压缩PNG图片
+   python3 png_optimizer.py --batch YYYYMMDD
+   
+   # 5. 人工验收图片质量
+   python3 unsplash_workflow.py verify --batch YYYYMMDD
+   
+   # 6. 生成元数据
+   python3 generate_metadata.py
+   
+   # 7. 上传到R2和发布
+   python3 api/processors/upload_to_r2.py --batch YYYYMMDD
+   ```
 
+   或使用一体化工作流工具：
+   ```bash
+   # 完整流程控制
+   python3 unsplash_workflow.py start --query "关键词" --count 数量
+   python3 unsplash_workflow.py process --batch YYYYMMDD
+   python3 unsplash_workflow.py compress --batch YYYYMMDD
+   python3 unsplash_workflow.py verify --batch YYYYMMDD
+   python3 unsplash_workflow.py metadata --batch YYYYMMDD
+   python3 unsplash_workflow.py upload-r2 --batch YYYYMMDD
+   python3 unsplash_workflow.py publish --batch YYYYMMDD
+   
    # 查看批次状态
    python3 batch_manager.py status YYYYMMDD
+   python3 unsplash_workflow.py status --batch YYYYMMDD
    ```
 
 2. **元数据生成**：
