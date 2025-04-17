@@ -12,7 +12,7 @@ import os
 from datetime import datetime
 
 # 配置
-NEW_METADATA_FILE = "metadata/metadata_20250420.json"
+NEW_METADATA_FILE = "metadata/metadata_20250417.json"
 MAIN_METADATA_FILE = "api/data/images.json"
 FRONTEND_DATA_FILE = "project/src/data/images.json"
 

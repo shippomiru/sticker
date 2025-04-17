@@ -33,6 +33,7 @@ import argparse
 import subprocess
 import shutil
 from datetime import datetime
+import glob
 
 # 导入项目中的其他模块
 import unsplash_importer
@@ -44,7 +45,9 @@ from batch_manager import (
     ensure_dir_exists,
     get_current_date,
     create_batch,
-    get_batch_status
+    get_batch_status,
+    load_batch_records,
+    save_batch_records
 )
 from png_optimizer import optimize_png
 
@@ -392,8 +395,33 @@ def verify_images(batch_date):
         reason = input("请简要说明未通过原因: ")
         return False, {"status": "未通过", "reason": reason}
     
+    # 验收通过，标记批次为已验收
+    # 获取记录
+    records = load_batch_records()
+    for b in records["batches"]:
+        if b["date"] == batch_date:
+            # 设置已验收标志
+            b["verified"] = True
+            # 更新验收后图片数量
+            processed_files = glob.glob(os.path.join(output_dir, "*_cropped.png"))
+            unique_base_names = set()
+            for file in processed_files:
+                base_name = os.path.basename(file).replace("_cropped.png", "").replace("_outlined", "")
+                unique_base_names.add(base_name)
+            b["verified_image_count"] = len(unique_base_names)
+            break
+    
+    # 保存更新后的记录
+    save_batch_records(records)
+    
     logger.info(f"批次 {batch_date} 中的图片验收通过")
-    return True, {"status": "已通过", "processed_count": batch["processed_count"]}
+    # 重新获取更新后的批次状态
+    updated_batch = get_batch_status(batch_date)
+    return True, {
+        "status": "已通过", 
+        "processed_count": updated_batch["processed_count"],
+        "verified_image_count": updated_batch["verified_image_count"]
+    }
 
 def generate_metadata(batch_date):
     """生成批次图片的元数据
@@ -680,11 +708,12 @@ def copy_to_public(batch_date):
         logger.error(f"复制图片到public目录时出错: {str(e)}")
         return False, {"error": str(e)}
 
-def publish_to_website(batch_date):
+def publish_to_website(batch_date, skip_git=False):
     """将批次数据发布到网站
     
     Args:
         batch_date: 批次日期
+        skip_git: 是否跳过Git提交和推送
         
     Returns:
         tuple: (成功状态, 详细信息)
@@ -785,73 +814,107 @@ def publish_to_website(batch_date):
             updated_count = int(updated_match.group(1))
         
         # 6. 提交更改到GitHub
-        logger.info("将更改提交到GitHub...")
+        git_committed = False
+        current_branch = None
         
-        # 获取当前日期作为提交信息
-        commit_date = datetime.now().strftime("%Y-%m-%d")
-        commit_message = f"添加批次 {batch_date} 的图片和元数据 [{commit_date}]"
-        
-        # 检查git状态
-        git_status_cmd = ["git", "status", "--porcelain"]
-        git_status_process = subprocess.Popen(
-            git_status_cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            universal_newlines=True
-        )
-        git_status_stdout, git_status_stderr = git_status_process.communicate()
-        
-        if not git_status_stdout:
-            logger.info("没有需要提交的更改")
+        if skip_git:
+            logger.info("跳过Git提交和推送步骤")
         else:
-            # 有更改需要提交
-            logger.info(f"发现需要提交的更改: \n{git_status_stdout}")
+            logger.info("将更改提交到GitHub...")
             
-            # 添加所有更改
-            git_add_cmd = ["git", "add", "."]
-            git_add_process = subprocess.Popen(
-                git_add_cmd,
+            # 获取当前日期作为提交信息
+            commit_date = datetime.now().strftime("%Y-%m-%d")
+            commit_message = f"添加批次 {batch_date} 的图片和元数据 [{commit_date}]"
+            
+            # 检查git状态
+            git_status_cmd = ["git", "status", "--porcelain"]
+            git_status_process = subprocess.Popen(
+                git_status_cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 universal_newlines=True
             )
-            git_add_stdout, git_add_stderr = git_add_process.communicate()
+            git_status_stdout, git_status_stderr = git_status_process.communicate()
             
-            if git_add_process.returncode != 0:
-                logger.error(f"git add 失败: {git_add_stderr}")
-                return False, {"error": f"git add 失败: {git_add_stderr}"}
+            # 检查git状态命令是否成功执行
+            if git_status_process.returncode != 0:
+                logger.error(f"git status 命令执行失败: {git_status_stderr}")
+                return False, {"error": f"git status 失败: {git_status_stderr}"}
             
-            # 提交更改
-            git_commit_cmd = ["git", "commit", "-m", commit_message]
-            git_commit_process = subprocess.Popen(
-                git_commit_cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                universal_newlines=True
-            )
-            git_commit_stdout, git_commit_stderr = git_commit_process.communicate()
-            
-            if git_commit_process.returncode != 0:
-                logger.error(f"git commit 失败: {git_commit_stderr}")
-                return False, {"error": f"git commit 失败: {git_commit_stderr}"}
-            
-            logger.info(f"成功提交更改: {git_commit_stdout}")
-            
-            # 推送到远程仓库
-            git_push_cmd = ["git", "push", "origin", "main"]
-            git_push_process = subprocess.Popen(
-                git_push_cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                universal_newlines=True
-            )
-            git_push_stdout, git_push_stderr = git_push_process.communicate()
-            
-            if git_push_process.returncode != 0:
-                logger.error(f"git push 失败: {git_push_stderr}")
-                return False, {"error": f"git push 失败: {git_push_stderr}"}
-            
-            logger.info("成功推送更改到GitHub")
+            if not git_status_stdout:
+                logger.info("没有需要提交的更改")
+            else:
+                # 有更改需要提交
+                logger.info(f"发现需要提交的更改: \n{git_status_stdout}")
+                
+                # 获取当前分支
+                git_branch_cmd = ["git", "rev-parse", "--abbrev-ref", "HEAD"]
+                git_branch_process = subprocess.Popen(
+                    git_branch_cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    universal_newlines=True
+                )
+                current_branch, git_branch_stderr = git_branch_process.communicate()
+                current_branch = current_branch.strip()
+                
+                if git_branch_process.returncode != 0:
+                    logger.error(f"获取当前分支失败: {git_branch_stderr}")
+                    return False, {"error": f"获取当前分支失败: {git_branch_stderr}"}
+                
+                logger.info(f"当前Git分支: {current_branch}")
+                
+                # 添加所有更改
+                git_add_cmd = ["git", "add", "."]
+                git_add_process = subprocess.Popen(
+                    git_add_cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    universal_newlines=True
+                )
+                git_add_stdout, git_add_stderr = git_add_process.communicate()
+                
+                if git_add_process.returncode != 0:
+                    logger.error(f"git add 失败: {git_add_stderr}")
+                    return False, {"error": f"git add 失败: {git_add_stderr}"}
+                
+                logger.info("成功添加更改到暂存区")
+                
+                # 提交更改
+                git_commit_cmd = ["git", "commit", "-m", commit_message]
+                git_commit_process = subprocess.Popen(
+                    git_commit_cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    universal_newlines=True
+                )
+                git_commit_stdout, git_commit_stderr = git_commit_process.communicate()
+                
+                if git_commit_process.returncode != 0:
+                    logger.error(f"git commit 失败: {git_commit_stderr}")
+                    return False, {"error": f"git commit 失败: {git_commit_stderr}"}
+                
+                logger.info(f"成功提交更改: {git_commit_stdout}")
+                
+                # 推送到远程仓库（使用当前分支而不是硬编码main）
+                git_push_cmd = ["git", "push", "origin", current_branch]
+                logger.info(f"正在推送到远程仓库: {' '.join(git_push_cmd)}")
+                
+                git_push_process = subprocess.Popen(
+                    git_push_cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    universal_newlines=True
+                )
+                git_push_stdout, git_push_stderr = git_push_process.communicate()
+                
+                if git_push_process.returncode != 0:
+                    logger.error(f"git push 失败: {git_push_stderr}")
+                    logger.warning("请手动推送更改到远程仓库")
+                    return False, {"error": f"git push 失败: {git_push_stderr}", "commit_success": True}
+                
+                logger.info(f"成功推送更改到GitHub分支 {current_branch}")
+                git_committed = True
         
         logger.info(f"成功将批次 {batch_date} 数据发布到网站")
         
@@ -859,7 +922,9 @@ def publish_to_website(batch_date):
         return True, {
             "status": "已完成",
             "updated_count": updated_count,
-            "git_committed": len(git_status_stdout) > 0
+            "git_committed": git_committed,
+            "git_branch": current_branch,
+            "skipped_git": skip_git
         }
     except Exception as e:
         logger.error(f"发布到网站时出错: {str(e)}")
@@ -910,6 +975,7 @@ def main():
     # 发布到网站命令
     publish_parser = subparsers.add_parser('publish', help='将批次数据发布到网站')
     publish_parser.add_argument('--batch', required=True, help='批次日期 (YYYYMMDD 格式)')
+    publish_parser.add_argument('--skip-git', action='store_true', help='跳过Git提交和推送步骤')
     
     # 查看状态命令
     status_parser = subparsers.add_parser('status', help='查看工作流状态')
@@ -1015,13 +1081,25 @@ def main():
             print(f"上传到 R2 失败: {details.get('error', '') or details.get('warning', '')}")
     
     elif args.command == 'publish':
-        success, details = publish_to_website(batch_date)
+        success, details = publish_to_website(batch_date, args.skip_git)
         
         if success:
             update_workflow_stage(state, "published", details)
             print_workflow_status(state)
+            print(f"\n发布结果: ")
+            print(f"- 更新的URL数量: {details.get('updated_count', 0)}")
+            if details.get('skipped_git'):
+                print(f"- Git操作: 已跳过")
+            elif details.get('git_committed'):
+                print(f"- Git提交: 成功 (分支: {details.get('git_branch', 'unknown')})")
+            else:
+                print(f"- Git提交: 未发现更改")
         else:
-            print(f"发布到网站失败: {details.get('error', '') or details.get('warning', '')}")
+            if details.get('commit_success'):
+                print(f"部分成功: 已提交到本地Git，但推送到远程仓库失败")
+                print(f"请手动执行: git push origin {details.get('git_branch', '当前分支')}")
+            else:
+                print(f"发布失败: {details.get('error', '')}")
     
     elif args.command == 'status':
         print_workflow_status(state)
