@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import images from '../data/images.json';
 import { useNavigate } from 'react-router-dom';
 import { trackTagClick, trackDownload } from '../utils/analytics';
+import { downloadImage } from '../utils/download';
 
 interface ImageGridProps {
   searchTerm: string;
@@ -77,6 +78,8 @@ export default function ImageGrid({ searchTerm = '', selectedTags = [], onTagsCh
 
   const handleDownload = async (url: string, e: React.MouseEvent) => {
     e.preventDefault();
+    e.stopPropagation(); // 阻止事件冒泡，防止点击下载按钮时触发详情页跳转
+    
     try {
       // 找到对应的图片对象，以获取ID
       const imageObj = images.find(img => img.png_url === url || fixImageUrl(img.png_url) === url);
@@ -85,20 +88,13 @@ export default function ImageGrid({ searchTerm = '', selectedTags = [], onTagsCh
         trackDownload(imageObj.id, url === imageObj.sticker_url ? 'outlined' : 'transparent');
       }
       
-      const response = await fetch(url);
-      const blob = await response.blob();
-      const blobUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = blobUrl;
+      // 使用综合下载方法
+      const filename = imageObj ? `${imageObj.caption}-transparent.png` : 'image-transparent.png';
+      const success = await downloadImage(url, filename);
       
-      // 找到对应的图片对象，以获取 caption
-      const fileName = imageObj ? `${imageObj.caption}-transparent.png` : 'image.png';
-      
-      link.download = fileName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(blobUrl);
+      if (!success) {
+        console.warn('综合下载方法失败，可能是CORS限制，建议用户右键保存图片');
+      }
     } catch (error) {
       console.error('Download failed:', error);
     }

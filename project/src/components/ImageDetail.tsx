@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Helmet } from 'react-helmet';
 import images from '../data/images.json';
 import { trackImageView, trackStyleSelection, trackDownload } from '../utils/analytics';
+import { downloadImage } from '../utils/download';
 
 type ImageStyle = 'transparent' | 'outlined';
 
@@ -32,6 +33,14 @@ export function ImageDetail({ onClose }: ImageDetailProps) {
     navigate('/');
     return null;
   }
+
+  // 确保图片URL格式正确
+  const fixImageUrl = (url: string) => {
+    if (!url.startsWith('/images/') && !url.startsWith('http')) {
+      return `/images/${url}`;
+    }
+    return url;
+  };
 
   // 生成SEO元数据
   const getMainTag = () => {
@@ -61,9 +70,9 @@ export function ImageDetail({ onClose }: ImageDetailProps) {
   const getImageUrl = (style: ImageStyle) => {
     switch (style) {
       case 'outlined':
-        return image.sticker_url;
+        return fixImageUrl(image.sticker_url);
       default:
-        return image.png_url;
+        return fixImageUrl(image.png_url);
     }
   };
 
@@ -76,26 +85,22 @@ export function ImageDetail({ onClose }: ImageDetailProps) {
 
   const handleDownload = async (e: React.MouseEvent) => {
     e.preventDefault();
+    e.stopPropagation(); // 阻止事件冒泡
     
     try {
       if (!image) return;
       
-      const downloadUrl = selectedStyle === 'transparent' 
-        ? image.png_url 
-        : image.sticker_url;
+      const downloadUrl = getImageUrl(selectedStyle);
       
       trackDownload(image.id, selectedStyle);
       
-      const response = await fetch(downloadUrl);
-      const blob = await response.blob();
-      const blobUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = `${image.caption}-${selectedStyle}.png`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(blobUrl);
+      // 使用综合下载方法
+      const filename = `${image.caption}-${selectedStyle}.png`;
+      const success = await downloadImage(downloadUrl, filename);
+      
+      if (!success) {
+        console.warn('综合下载方法失败，可能是CORS限制，建议用户右键保存图片');
+      }
     } catch (error) {
       console.error('Download failed:', error);
     }
