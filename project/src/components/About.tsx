@@ -91,7 +91,6 @@ export function About() {
           </p>
           <div className="space-y-2 text-lg text-gray-600">
             <p>Email: contact@clippng.online</p>
-            <p>WeChat: ClipPng_Support</p>
           </div>
         </section>
       </div>
