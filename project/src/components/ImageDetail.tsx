@@ -315,9 +315,9 @@ export function ImageDetail({ onClose }: ImageDetailProps) {
               </button>
               <div className="text-center">
                 <p className="text-xs sm:text-xs text-gray-500 mt-2 sm:mt-3">
-                  Photo by <a href={photographerLink} target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-blue-600 transition-colors">
+                  Photo by <a href={photographerLink} target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-blue-500 transition-colors">
                     {image.username || image.author}
-                  </a> on <a href={unsplashLink} target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-blue-600 transition-colors">Unsplash</a>
+                  </a> on <a href={unsplashLink} target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-blue-500 transition-colors">Unsplash</a>
                 </p>
               </div>
             </div>
