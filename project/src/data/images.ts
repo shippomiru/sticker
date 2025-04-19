@@ -6,6 +6,7 @@ export interface ImageData {
   caption: string;
   description: string;
   tags: string[];
+  main_noun?: string; // 从元数据中提取的主体名词，用于SEO优化
   slug: string;
   author: string;
   title: string;

@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowDown, Tags, ChevronDown, Filter, Search } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import images from '../data/images.json';
+import { images, ImageData } from '../data/images';
 import { useNavigate } from 'react-router-dom';
 import { trackTagClick, trackDownload } from '../utils/analytics';
 import { downloadImage } from '../utils/download';

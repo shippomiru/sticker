@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowDown, X, Check } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Helmet } from 'react-helmet';
-import images from '../data/images.json';
+import { images, ImageData } from '../data/images';
 import { trackImageView, trackStyleSelection, trackDownload } from '../utils/analytics';
 import { downloadImage } from '../utils/download';
 
@@ -44,23 +44,57 @@ export function ImageDetail({ onClose }: ImageDetailProps) {
 
   // 生成SEO元数据
   const getMainTag = () => {
-    // 如果标签是others，则使用图片标题中的主体名词
-    if (image.tags.includes('others') && image.tags.length === 1) {
-      // 提取标题中的第一个单词作为主体名词
-      const titleWords = image.caption.split(' ');
-      return titleWords[0];
-    }
-    // 使用第一个非others标签
+    // 打印原始数据用于调试
+    console.log('图片数据:', {
+      id: image.id,
+      caption: image.caption,
+      tags: image.tags,
+      main_noun: image.main_noun
+    });
+    
+    // 优先使用非others标签
     const nonOthersTag = image.tags.find(tag => tag !== 'others');
-    return nonOthersTag || image.tags[0];
+    if (nonOthersTag) {
+      console.log('使用非others标签:', nonOthersTag);
+      return nonOthersTag;
+    }
+    
+    // 如果标签都是others，则优先使用main_noun字段
+    if (image.main_noun) {
+      console.log('使用main_noun字段:', image.main_noun);
+      return image.main_noun;
+    }
+    
+    // 兜底逻辑：从图片标题中提取主体名词
+    const titleWords = image.caption.split(' ');
+    
+    // 忽略冠词和常见修饰词
+    const skipWords = ['a', 'an', 'the', 'small', 'large', 'big', 'tiny', 'huge', 'little'];
+    
+    // 寻找第一个非冠词、非修饰词的名词
+    const mainNoun = titleWords.find(word => 
+      !skipWords.includes(word.toLowerCase())
+    );
+    
+    // 如果找不到合适的词，则使用第一个非冠词词语
+    const firstNonArticle = titleWords.find(word => 
+      !['a', 'an', 'the'].includes(word.toLowerCase())
+    );
+    
+    const result = mainNoun || firstNonArticle || titleWords[0] || 'image';
+    console.log('使用兜底逻辑:', result);
+    return result;
   };
 
   const mainTag = getMainTag();
   // 首字母大写
   const capitalizedTag = mainTag.charAt(0).toUpperCase() + mainTag.slice(1);
   
+  // 优化SEO标题，使用更精确的名词
   const seoTitle = `${capitalizedTag} Clipart – Transparent ${capitalizedTag} PNG Sticker | ClipPng`;
-  const seoDescription = `Download free ${mainTag} clipart PNG with transparent background – perfect for presentations, lesson plans, YouTube thumbnails, digital journals, and DIY collages.`;
+  
+  // 优化SEO描述，添加更多细节
+  const seoDescription = `Download free ${mainTag} clipart PNG with transparent background – ${image.caption}. Perfect for presentations, lesson plans, YouTube thumbnails, digital journals, and DIY collages.`;
   const imageAlt = `${image.caption} - transparent background png & clipart`;
 
   useEffect(() => {

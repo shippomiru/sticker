@@ -426,7 +426,7 @@ def classify_image_to_predefined_tags(caption, extracted_noun=None):
         matched_tags.append("others")
     
     print(f"将图片分类为标签: {matched_tags}")
-    return matched_tags
+    return matched_tags[0] if matched_tags else "others"
 
 def generate_metadata_for_image(image_path):
     """为单个图片生成元数据"""
@@ -461,7 +461,7 @@ def generate_metadata_for_image(image_path):
     main_noun = extract_main_noun(caption)
     
     # 使用预定义标签分类图片
-    tags = classify_image_to_predefined_tags(caption, main_noun)
+    tag = classify_image_to_predefined_tags(caption, main_noun)
     
     # 从文件名中提取作者名称，但排除ID部分
     # 假设Unsplash文件名格式为: 作者名-可能的标题-ID-unsplash
@@ -504,7 +504,8 @@ def generate_metadata_for_image(image_path):
         "id": filename_base,  # 使用文件名作为ID
         "caption": caption,
         "description": f"High quality free PNG image with transparent background. {caption} photo by {author} on Unsplash, processed for free use.",
-        "tags": tags,
+        "tags": [tag],  # 将单一标签放入列表中，保持与现有结构兼容
+        "main_noun": main_noun,  # 添加主体名词字段
         "slug": slug,
         "author": author,
         "original_url": f"https://unsplash.com/photos/{filename_base}" if "unsplash" in filename_base else "",
