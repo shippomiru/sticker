@@ -350,22 +350,28 @@ def classify_image_to_predefined_tags(caption, extracted_noun=None):
     caption_lower = caption.lower()
     matched_tags = []
     
-    # 1. 直接匹配预定义标签
-    for tag in predefined_tags:
-        if tag != "others" and tag in caption_lower:
-            matched_tags.append(tag)
-            continue
-            
-        # 2. 检查同义词
-        if tag in synonyms:
-            for synonym in synonyms[tag]:
-                if synonym in caption_lower:
-                    matched_tags.append(tag)
-                    break
+    # 将描述文本分词
+    words = re.findall(r'\b\w+\b', caption_lower)
     
-    # 3. 如果提取到了主体名词，看它是否匹配预定义标签或同义词
-    if extracted_noun and not matched_tags:
-        extracted_lower = extracted_noun.lower()
+    # 1. 首先尝试使用提取的主体名词进行匹配（提高优先级）
+    if extracted_noun:
+        # 安全处理extracted_noun，确保是字符串类型
+        extracted_lower = ""
+        if isinstance(extracted_noun, list):
+            # 如果是非空列表则取第一个元素
+            if extracted_noun and len(extracted_noun) > 0:
+                # 确保元素是字符串类型
+                if isinstance(extracted_noun[0], str):
+                    extracted_lower = extracted_noun[0].lower()
+                else:
+                    extracted_lower = str(extracted_noun[0]).lower()
+        else:
+            # 如果是字符串则直接使用，否则转为字符串
+            if isinstance(extracted_noun, str):
+                extracted_lower = extracted_noun.lower()
+            else:
+                extracted_lower = str(extracted_noun).lower()
+        
         # 直接匹配标签
         if extracted_lower in predefined_tags and extracted_lower != "others":
             matched_tags.append(extracted_lower)
@@ -376,30 +382,48 @@ def classify_image_to_predefined_tags(caption, extracted_noun=None):
                     matched_tags.append(tag)
                     break
     
+    # 2. 如果主体名词没有匹配成功，使用单词边界匹配
+    if not matched_tags:
+        for tag in predefined_tags:
+            if tag != "others" and tag in words:  # 检查完整单词匹配
+                matched_tags.append(tag)
+                break
+                
+        # 3. 检查同义词（使用单词边界匹配）
+        if not matched_tags:
+            for tag in predefined_tags:
+                if tag in synonyms:
+                    for synonym in synonyms[tag]:
+                        if synonym in words:  # 检查完整单词匹配
+                            matched_tags.append(tag)
+                            break
+                    if matched_tags:
+                        break
+    
     # 4. 如果仍未匹配到标签，使用语义相似度检测
     if not matched_tags:
         # 先检查是否是鸟类图片（避免将鸟错误分类为飞机）
-        if "bird" in caption_lower or any(word in caption_lower for word in ["wing", "feather", "nest", "beak"]):
+        if "bird" in words or any(word in words for word in ["feather", "nest", "beak"]):
             matched_tags.append("bird")
         # 简单语义规则 - 基于关键词
-        elif any(word in caption_lower for word in ["vehicle", "driving", "road"]):
+        elif any(word in words for word in ["vehicle", "driving", "road"]):
             matched_tags.append("car")
-        elif any(word in caption_lower for word in ["flying", "sky", "airport"]) and not "bird" in caption_lower:
+        elif any(word in words for word in ["flying", "sky", "airport"]) and "bird" not in words:
             matched_tags.append("airplane")
-        elif any(word in caption_lower for word in ["reading", "pages", "studying"]):
+        elif any(word in words for word in ["reading", "pages", "studying"]):
             matched_tags.append("book")
-        elif any(word in caption_lower for word in ["pet", "furry", "animal"]):
+        elif any(word in words for word in ["pet", "furry", "animal"]):
             if "meow" in caption_lower or "whiskers" in caption_lower:
                 matched_tags.append("cat")
             else:
                 matched_tags.append("dog")
-        elif any(word in caption_lower for word in ["shoot", "military", "hunting"]):
+        elif any(word in words for word in ["shoot", "military", "hunting"]):
             matched_tags.append("gun")
-        elif any(word in caption_lower for word in ["photo", "picture", "photographer"]):
+        elif any(word in words for word in ["photo", "picture", "photographer"]):
             matched_tags.append("camera")
-        elif any(word in caption_lower for word in ["celebration", "party", "cake"]):
+        elif any(word in words for word in ["celebration", "party", "cake"]):
             matched_tags.append("birthday")
-        elif any(word in caption_lower for word in ["cash", "bank", "finance"]):
+        elif any(word in words for word in ["cash", "bank", "finance"]):
             matched_tags.append("money")
     
     # 5. 如果仍未匹配任何标签，使用"others"标签
@@ -407,7 +431,8 @@ def classify_image_to_predefined_tags(caption, extracted_noun=None):
         matched_tags.append("others")
     
     print(f"将图片分类为标签: {matched_tags}")
-    return matched_tags
+    # 只返回第一个匹配到的标签
+    return matched_tags[0] if matched_tags else "others"
 
 def generate_metadata_for_image(image_path):
     """为单个图片生成元数据"""
