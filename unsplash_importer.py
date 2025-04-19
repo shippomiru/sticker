@@ -203,13 +203,14 @@ def get_photo_by_id(photo_id):
         logger.error(f"获取图片信息时发生错误: {e}")
         return None
 
-def search_photos(query, per_page=10, page=1):
+def search_photos(query, per_page=10, page=1, order_by='relevant'):
     """搜索 Unsplash 图片
     
     Args:
         query: 搜索关键词
         per_page: 每页结果数，默认10
         page: 页码，默认1
+        order_by: 排序方式，默认按相关性
         
     Returns:
         list: 图片数据列表
@@ -225,7 +226,8 @@ def search_photos(query, per_page=10, page=1):
     params = {
         'query': query,
         'per_page': per_page,
-        'page': page
+        'page': page,
+        'order_by': order_by
     }
     
     try:
@@ -384,13 +386,16 @@ def import_photos_by_ids(photo_ids, batch_dir):
     
     return imported_paths
 
-def import_photos_by_query(query, count, batch_dir):
+def import_photos_by_query(query, count, batch_dir, order_by='relevant', per_page=10, start_page=1):
     """通过关键词搜索导入 Unsplash 图片，确保获取到指定数量的新图片
     
     Args:
         query: 搜索关键词
         count: 需要导入的新图片数量
         batch_dir: 批次目录
+        order_by: 排序方式
+        per_page: 每页获取数量
+        start_page: 起始页码
         
     Returns:
         list: 成功导入的图片路径列表
@@ -407,15 +412,20 @@ def import_photos_by_query(query, count, batch_dir):
     api_limit_reached = False
     
     # 初始化分页参数
-    current_page = 1
-    per_page = min(30, count)  # 每页获取数量，Unsplash官方建议最大30
+    current_page = start_page
+    per_page = min(30, per_page)  # 确保不超过Unsplash API的限制
     
     # 当还需要更多图片且没有达到API限制时继续获取
     while len(imported_paths) < count and not api_limit_reached and total_attempts < 100:
-        logger.info(f"尝试获取第{current_page}页搜索结果，每页{per_page}张图片")
+        logger.info(f"尝试获取第{current_page}页搜索结果，每页{per_page}张图片，排序方式:{order_by}")
         
         # 搜索图片
-        photo_data_list, total_pages, total_results = search_photos(query, per_page=per_page, page=current_page)
+        photo_data_list, total_pages, total_results = search_photos(
+            query, 
+            per_page=per_page, 
+            page=current_page,
+            order_by=order_by
+        )
         
         # 检查是否到达结果末尾或API限制
         if not photo_data_list:
@@ -479,7 +489,7 @@ def import_photos_by_query(query, count, batch_dir):
     
     return imported_paths
 
-def import_to_batch(batch_date=None, photo_ids=None, query=None, count=5):
+def import_to_batch(batch_date=None, photo_ids=None, query=None, count=5, order_by='relevant', per_page=10, page=1):
     """导入图片到指定批次
     
     Args:
@@ -487,6 +497,9 @@ def import_to_batch(batch_date=None, photo_ids=None, query=None, count=5):
         photo_ids: Unsplash 图片 ID 列表
         query: 搜索关键词
         count: 搜索导入数量
+        order_by: 排序方式
+        per_page: 每页获取数量
+        page: 起始页码
         
     Returns:
         list: 成功导入的图片路径列表
@@ -508,8 +521,8 @@ def import_to_batch(batch_date=None, photo_ids=None, query=None, count=5):
         return import_photos_by_ids(photo_ids, batch_dir)
     
     elif query:
-        logger.info(f"开始导入关键词 '{query}' 的图片到批次 {batch_date}")
-        return import_photos_by_query(query, count, batch_dir)
+        logger.info(f"开始导入关键词 '{query}' 的图片到批次 {batch_date}, 排序:{order_by}, 页码:{page}, 每页:{per_page}")
+        return import_photos_by_query(query, count, batch_dir, order_by, per_page, page)
     
     else:
         logger.error("未指定图片 ID 或搜索关键词")

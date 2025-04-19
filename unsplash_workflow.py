@@ -217,7 +217,7 @@ def print_workflow_status(state):
     print("\n" + "="*50)
 
 # 工作流处理函数
-def import_unsplash_images(batch_date, photo_ids=None, query=None, count=5):
+def import_unsplash_images(batch_date, photo_ids=None, query=None, count=5, order_by='relevant', per_page=10, page=1):
     """从Unsplash导入图片到批次
     
     Args:
@@ -225,6 +225,9 @@ def import_unsplash_images(batch_date, photo_ids=None, query=None, count=5):
         photo_ids: Unsplash图片ID列表
         query: 搜索关键词
         count: 搜索导入数量
+        order_by: 搜索结果排序方式
+        per_page: 每页获取数量
+        page: 起始页码
         
     Returns:
         tuple: (成功状态, 详细信息)
@@ -240,8 +243,9 @@ def import_unsplash_images(batch_date, photo_ids=None, query=None, count=5):
             logger.info(f"通过ID导入图片: {', '.join(photo_ids)}")
             imported_paths = unsplash_importer.import_to_batch(batch_date, photo_ids=photo_ids)
         elif query:
-            logger.info(f"通过关键词导入图片: {query}, count={count}")
-            imported_paths = unsplash_importer.import_to_batch(batch_date, query=query, count=count)
+            logger.info(f"通过关键词导入图片: {query}, count={count}, order_by={order_by}, per_page={per_page}, page={page}")
+            imported_paths = unsplash_importer.import_to_batch(batch_date, query=query, count=count, 
+                                                              order_by=order_by, per_page=per_page, page=page)
         else:
             logger.error("未指定图片ID或搜索关键词")
             return False, {"error": "未指定图片ID或搜索关键词"}
@@ -943,6 +947,10 @@ def main():
     start_parser.add_argument('--count', type=int, default=5, help='搜索导入数量 (默认: 5)')
     start_parser.add_argument('--batch', help='批次日期 (YYYYMMDD 格式，默认为当前日期)')
     start_parser.add_argument('--process', action='store_true', help='导入后自动处理图片')
+    start_parser.add_argument('--order-by', choices=['relevant', 'latest', 'popular', 'oldest', 'views', 'downloads'], 
+                            default='relevant', help='搜索结果排序方式 (默认: relevant)')
+    start_parser.add_argument('--per-page', type=int, default=10, help='每页获取数量 (默认: 10, 最大: 30)')
+    start_parser.add_argument('--page', type=int, default=1, help='起始页码 (默认: 1)')
     
     # 处理图片命令
     process_parser = subparsers.add_parser('process', help='处理批次中的图片')
@@ -1000,7 +1008,15 @@ def main():
         photo_ids = args.id.split(',') if args.id else None
         
         # 从 Unsplash 导入图片
-        success, details = import_unsplash_images(batch_date, photo_ids, args.query, args.count)
+        success, details = import_unsplash_images(
+            batch_date, 
+            photo_ids, 
+            args.query, 
+            args.count,
+            args.order_by,
+            args.per_page,
+            args.page
+        )
         
         if success:
             # 更新工作流状态

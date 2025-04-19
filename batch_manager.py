@@ -75,18 +75,20 @@ def create_batch(batch_date=None):
     if batch_date is None:
         batch_date = get_current_date()
     
+    # 移除任何已有的后缀，只保留日期部分 (YYYYMMDD)
+    # 例如: 20250418_1 -> 20250418
+    if '_' in batch_date:
+        batch_date = batch_date.split('_')[0]
+        logger.info(f"已移除批次名称中的后缀，使用纯日期: {batch_date}")
+    
     # 加载现有批次记录
     records = load_batch_records()
     
-    # 检查批次是否已存在，如果存在则添加后缀
-    original_batch_date = batch_date
-    suffix = 1
-    
-    # 查找可用的批次名称
-    while any(batch["date"] == batch_date for batch in records["batches"]):
-        batch_date = f"{original_batch_date}_{suffix}"
-        suffix += 1
-        logger.info(f"批次 {original_batch_date} 已存在，尝试使用 {batch_date}")
+    # 检查批次是否已存在，如果存在则直接返回现有批次ID
+    for existing_batch in records["batches"]:
+        if existing_batch["date"] == batch_date:
+            logger.info(f"批次 {batch_date} 已存在，将使用现有批次")
+            return batch_date
     
     # 创建批次目录
     batch_input_dir = os.path.join(UNSPLASH_IMAGES_DIR, batch_date)
