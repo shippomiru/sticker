@@ -408,7 +408,7 @@ def classify_image_to_predefined_tags(caption, extracted_noun=None):
         # 简单语义规则 - 基于关键词
         elif any(word in words for word in ["vehicle", "driving", "road"]):
             matched_tags.append("car")
-        elif any(word in words for word in ["flying", "sky", "airport"]) and "bird" not in words:
+        elif any(word in words for word in ["flying", "sky", "airport", "airline","airway"]) and "bird" not in words:
             matched_tags.append("airplane")
         elif any(word in words for word in ["reading", "pages", "studying"]):
             matched_tags.append("book")
