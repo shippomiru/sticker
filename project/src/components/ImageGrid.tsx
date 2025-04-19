@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowDown, Tags, ChevronDown, Filter, Search } from 'lucide-react';
+import { ArrowDown, Tags, ChevronDown, Search } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { images, ImageData } from '../data/images';
 import { useNavigate } from 'react-router-dom';
@@ -84,16 +84,23 @@ export default function ImageGrid({ searchTerm = '', selectedTags = [], onTagsCh
       // 找到对应的图片对象，以获取ID
       const imageObj = images.find(img => img.png_url === url || fixImageUrl(img.png_url) === url);
       if (imageObj) {
-        // 记录下载事件
+        // 记录下载事件到Google Analytics
         trackDownload(imageObj.id, url === imageObj.sticker_url ? 'outlined' : 'transparent');
-      }
-      
-      // 使用综合下载方法
-      const filename = imageObj ? `${imageObj.caption}-transparent.png` : 'image-transparent.png';
-      const success = await downloadImage(url, filename);
-      
-      if (!success) {
-        console.warn('综合下载方法失败，可能是CORS限制，建议用户右键保存图片');
+        
+        // 使用综合下载方法，传递图片ID用于触发Unsplash下载事件
+        // 确保传递原始ID信息 (从图片ID中提取)
+        const filename = `${imageObj.caption}-transparent.png`;
+        const success = await downloadImage(url, filename);
+        
+        if (!success) {
+          console.warn('综合下载方法失败，可能是CORS限制，建议用户右键保存图片');
+        }
+      } else {
+        // 找不到图片对象，继续下载但不触发Unsplash事件
+        const success = await downloadImage(url, 'image-transparent.png');
+        if (!success) {
+          console.warn('综合下载方法失败，可能是CORS限制，建议用户右键保存图片');
+        }
       }
     } catch (error) {
       console.error('Download failed:', error);
@@ -166,7 +173,6 @@ export default function ImageGrid({ searchTerm = '', selectedTags = [], onTagsCh
             className="md:hidden flex items-center text-sm text-gray-700 hover:text-blue-600"
             onClick={() => setShowTagsOnMobile(!showTagsOnMobile)}
           >
-            <Filter className="h-4 w-4 mr-1" />
             <span>{showTagsOnMobile ? t('hideTags') : t('showTags')}</span>
             <ChevronDown 
               className={`h-4 w-4 ml-1 transition-transform ${showTagsOnMobile ? 'rotate-180' : ''}`}
@@ -222,7 +228,7 @@ export default function ImageGrid({ searchTerm = '', selectedTags = [], onTagsCh
                   }}
                   loading="lazy" // 添加懒加载
                 />
-                <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center backdrop-blur-[2px]">
+                <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-all duration-300 hidden sm:flex items-center justify-center backdrop-blur-[2px]">
                   <button 
                     className="p-2 sm:p-3 bg-white/90 backdrop-blur rounded-xl hover:bg-white transition-all duration-300 shadow-lg transform translate-y-2 group-hover:translate-y-0 group-hover:scale-105"
                     onClick={(e) => handleDownload(image.png_url, e)}

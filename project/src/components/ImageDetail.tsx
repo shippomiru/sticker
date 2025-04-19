@@ -97,6 +97,40 @@ export function ImageDetail({ onClose }: ImageDetailProps) {
   const seoDescription = `Download free ${mainTag} clipart PNG with transparent background – ${image.caption}. Perfect for presentations, lesson plans, YouTube thumbnails, digital journals, and DIY collages.`;
   const imageAlt = `${image.caption} - transparent background png & clipart`;
 
+  // 生成归属链接
+  const getAttributionLinks = () => {
+    const appName = 'ClipPng';
+    
+    // 按照Unsplash官方指南使用username构建链接
+    let photographerLink = '';
+    if (image.username) {
+      // 使用用户名构建标准格式的链接
+      photographerLink = `https://unsplash.com/@${image.username}?utm_source=${appName}&utm_medium=referral`;
+      console.log('使用用户名构建链接:', photographerLink);
+    } else if (image.unsplash_id) {
+      // 如果有unsplash_id但没有username，使用ID构建链接
+      photographerLink = `https://unsplash.com/photos/${image.unsplash_id}?utm_source=${appName}&utm_medium=referral`;
+      console.log('使用unsplash_id构建链接:', photographerLink);
+    } else if (image.photographer_url) {
+      // 如果有摄影师URL，则使用它作为备选，但添加UTM参数
+      const baseUrl = image.photographer_url.split('?')[0]; // 移除可能存在的参数
+      photographerLink = `${baseUrl}?utm_source=${appName}&utm_medium=referral`;
+      console.log('使用摄影师直接链接:', photographerLink);
+    } else if (image.username) {
+      // 如果有用户名，则构建链接
+      photographerLink = `https://unsplash.com/@${image.username}?utm_source=${appName}&utm_medium=referral`;
+      console.log('使用用户名构建链接:', photographerLink);
+    } else {
+      console.log('没有找到用户名或摄影师链接，作者信息将不可点击');
+    }
+    
+    const unsplashLink = `https://unsplash.com/?utm_source=${appName}&utm_medium=referral`;
+    
+    return { photographerLink, unsplashLink };
+  };
+  
+  const { photographerLink, unsplashLink } = getAttributionLinks();
+
   useEffect(() => {
     trackImageView(image.id);
   }, [image, navigate]);
@@ -126,9 +160,22 @@ export function ImageDetail({ onClose }: ImageDetailProps) {
       
       const downloadUrl = getImageUrl(selectedStyle);
       
+      // 记录下载事件到Google Analytics
       trackDownload(image.id, selectedStyle);
       
-      // 使用综合下载方法
+      // 如果有Unsplash ID，在后台触发Unsplash下载事件，不影响主下载流程
+      if (image.id && image.unsplash_id) {
+        // 使用setTimeout确保下载逻辑先执行，不被上报逻辑阻塞
+        setTimeout(() => {
+          import('../utils/unsplash').then(({ triggerUnsplashDownload }) => {
+            triggerUnsplashDownload(image.unsplash_id || image.id).catch(error => {
+              console.error('触发Unsplash下载事件失败:', error);
+            });
+          });
+        }, 100);
+      }
+      
+      // 使用综合下载方法，但不传递第三个参数，避免新窗口下载
       const filename = `${image.caption}-${selectedStyle}.png`;
       const success = await downloadImage(downloadUrl, filename);
       
@@ -169,15 +216,15 @@ export function ImageDetail({ onClose }: ImageDetailProps) {
           {/* 关闭按钮 */}
           <button
             onClick={handleClose}
-            className="absolute top-4 right-4 sm:top-6 sm:right-6 md:top-8 md:right-8 z-10 p-1.5 bg-white/80 backdrop-blur-sm rounded-full shadow-sm"
+            className="absolute top-3 right-3 sm:top-6 sm:right-6 md:top-8 md:right-8 z-10 p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-md"
             aria-label="Close"
           >
-            <X className="h-4 w-4 sm:h-5 sm:w-5 text-gray-600 hover:text-gray-900 transition-colors" />
+            <X className="h-5 w-5 sm:h-5 sm:w-5 text-gray-700 hover:text-gray-900 transition-colors" />
           </button>
 
           {/* 图片预览区域 */}
-          <div className="w-full lg:w-2/3 bg-gradient-to-br from-gray-50 to-white">
-            <div className={`relative w-full h-[40vh] sm:h-[50vh] lg:h-full flex items-center justify-center p-4 sm:p-6 md:p-8 lg:p-16 ${bgColor} transition-colors duration-300`}>
+          <div className="w-full lg:w-2/3 bg-gradient-to-br from-gray-900 to-black">
+            <div className={`relative w-full h-[45vh] sm:h-[50vh] lg:h-full flex items-center justify-center p-4 sm:p-6 md:p-8 lg:p-16 transition-colors duration-300`}>
               <img
                 key={currentImageUrl}
                 src={currentImageUrl}
@@ -188,20 +235,22 @@ export function ImageDetail({ onClose }: ImageDetailProps) {
               />
               {!imageLoaded && (
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12 border-t-2 border-b-2 border-blue-500"></div>
+                  <div className="animate-spin rounded-full h-10 w-10 sm:h-10 sm:w-10 md:h-12 md:w-12 border-t-2 border-b-2 border-blue-500"></div>
                 </div>
               )}
             </div>
           </div>
 
           {/* 右侧内容区域 */}
-          <div className="relative w-full lg:w-1/3 flex flex-col h-[55vh] sm:h-[40vh] lg:h-[90vh] bg-white border-t lg:border-t-0 lg:border-l border-gray-100">
+          <div className="relative w-full lg:w-1/3 flex flex-col h-auto sm:h-[40vh] lg:h-[90vh] bg-white border-t lg:border-t-0 lg:border-l border-gray-100">
+            {/* 标题区域 */}
             <div className="p-4 sm:p-6 md:p-8 lg:p-10 flex-grow overflow-y-auto">
               <div className="max-w-sm">
-                <h1 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-3 sm:mb-4 pr-8 sm:pr-12">
+                <h1 className="text-lg sm:text-2xl font-semibold text-gray-900 mb-1 sm:mb-4 pr-6 sm:pr-12">
                   {image.caption}
                 </h1>
-                <div className="space-y-3 sm:space-y-4">
+                {/* 在移动端隐藏描述，在平板和桌面端显示 */}
+                <div className="hidden sm:block space-y-3 sm:space-y-4">
                   <p className="text-sm sm:text-base text-gray-600 leading-relaxed">
                     High quality free PNG image with transparent background, perfect for presentations, video editing, journaling, and creative design.
                   </p>
@@ -209,7 +258,8 @@ export function ImageDetail({ onClose }: ImageDetailProps) {
                     Try the sticker version to add charm to your planners, scrapbooks, or collages.
                   </p>
                 </div>
-                <div className="flex flex-wrap gap-1.5 sm:gap-2 mt-6 sm:mt-8">
+                {/* 在移动端隐藏标签，在平板和桌面端显示 */}
+                <div className="hidden sm:flex flex-wrap gap-1.5 sm:gap-2 mt-6 sm:mt-8">
                   {image.tags.map((tag) => (
                     <span
                       key={tag}
@@ -223,8 +273,8 @@ export function ImageDetail({ onClose }: ImageDetailProps) {
             </div>
 
             {/* 样式选择和下载 */}
-            <div className="p-4 sm:p-6 md:p-8 lg:p-10 space-y-4 sm:space-y-6 bg-white">
-              <div className="grid grid-cols-2 gap-2 sm:gap-3">
+            <div className="p-4 pb-5 sm:p-6 md:p-8 lg:p-10 space-y-4 sm:space-y-6 bg-white border-t border-gray-100">
+              <div className="grid grid-cols-2 gap-3 sm:gap-3">
                 <button
                   onClick={() => {
                     setSelectedStyle('transparent');
@@ -234,8 +284,8 @@ export function ImageDetail({ onClose }: ImageDetailProps) {
                   }}
                   className={`px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium rounded-lg sm:rounded-xl transition-all duration-300 ${
                     selectedStyle === 'transparent'
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'bg-gray-50 text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                      ? 'bg-blue-600 text-white shadow-md'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:text-gray-900 border border-gray-200'
                   }`}
                 >
                   {t('transparentBackground')}
@@ -249,8 +299,8 @@ export function ImageDetail({ onClose }: ImageDetailProps) {
                   }}
                   className={`px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium rounded-lg sm:rounded-xl transition-all duration-300 ${
                     selectedStyle === 'outlined'
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'bg-gray-50 text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                      ? 'bg-blue-600 text-white shadow-md'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:text-gray-900 border border-gray-200'
                   }`}
                 >
                   {t('whiteBorder')}
@@ -258,14 +308,16 @@ export function ImageDetail({ onClose }: ImageDetailProps) {
               </div>
               <button
                 onClick={handleDownload}
-                className="w-full flex items-center justify-center gap-2 px-4 sm:px-6 py-3 sm:py-3.5 bg-blue-600 text-white rounded-lg sm:rounded-xl hover:bg-blue-700 transition-all duration-300 shadow-sm hover:shadow"
+                className="w-full flex items-center justify-center gap-2 px-4 sm:px-6 py-3 sm:py-3.5 bg-blue-600 text-white rounded-lg sm:rounded-xl hover:bg-blue-700 transition-all duration-300 shadow-md hover:shadow-lg"
               >
-                <ArrowDown className="h-4 w-4 sm:h-5 sm:w-5" />
-                <span className="text-sm sm:text-base font-medium">{t('downloadImage')}</span>
+                <ArrowDown className="h-5 w-5 sm:h-5 sm:w-5" />
+                <span className="text-base sm:text-base font-medium">{t('downloadImage')}</span>
               </button>
               <div className="text-center">
-                <p className="text-[10px] sm:text-xs text-gray-300 mt-2 sm:mt-3">
-                  Photo by {image.author} on Unsplash
+                <p className="text-xs sm:text-xs text-gray-500 mt-2 sm:mt-3">
+                  Photo by <a href={photographerLink} target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-blue-600 transition-colors">
+                    {image.username || image.author}
+                  </a> on <a href={unsplashLink} target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-blue-600 transition-colors">Unsplash</a>
                 </p>
               </div>
             </div>

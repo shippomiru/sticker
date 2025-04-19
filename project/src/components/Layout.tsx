@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { Search, Menu, X } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { trackSearch } from '../utils/analytics';
 
@@ -39,7 +39,6 @@ interface LayoutProps {
 export function Layout({ searchTerm = '', onSearchChange = () => {} }: LayoutProps) {
   const { t, i18n } = useTranslation();
   const location = useLocation();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
 
   const toggleLanguage = () => {
@@ -111,17 +110,12 @@ export function Layout({ searchTerm = '', onSearchChange = () => {} }: LayoutPro
               >
                 {i18n.language === 'en' ? 'ZH' : 'EN'}
               </button>
-              <button 
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="p-2 rounded-lg hover:bg-gray-100"
-                aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
+              <Link 
+                to="/about"
+                className="px-3 py-1 text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors rounded-lg hover:bg-blue-50"
               >
-                {mobileMenuOpen ? (
-                  <X className="h-5 w-5 text-gray-600" />
-                ) : (
-                  <Menu className="h-5 w-5 text-gray-600" />
-                )}
-              </button>
+                {t('footer.about')}
+              </Link>
             </div>
           </div>
 
@@ -149,46 +143,6 @@ export function Layout({ searchTerm = '', onSearchChange = () => {} }: LayoutPro
               </form>
             </div>
           )}
-
-          {/* Mobile Menu - Slide down when active */}
-          {mobileMenuOpen && (
-            <div className="md:hidden py-3 border-t mt-3 border-gray-100">
-              <nav className="flex flex-col space-y-3">
-                <Link 
-                  to="/about" 
-                  className={`py-2 px-3 rounded-lg ${
-                    location.pathname === '/about'
-                      ? 'bg-blue-50 text-blue-600'
-                      : 'text-gray-600'
-                  }`}
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  {t('footer.about')}
-                </Link>
-                <Link 
-                  to="#"
-                  className="py-2 px-3 rounded-lg text-gray-600"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  {t('footer.contact')}
-                </Link>
-                <Link 
-                  to="#"
-                  className="py-2 px-3 rounded-lg text-gray-600"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  {t('footer.terms')}
-                </Link>
-                <Link 
-                  to="#"
-                  className="py-2 px-3 rounded-lg text-gray-600"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  {t('footer.privacy')}
-                </Link>
-              </nav>
-            </div>
-          )}
         </div>
       </header>
 
@@ -196,8 +150,8 @@ export function Layout({ searchTerm = '', onSearchChange = () => {} }: LayoutPro
 
       {/* Footer */}
       <footer className="bg-white border-t border-gray-100 mt-auto">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-12">
+          <div className="hidden md:flex md:flex-row md:items-center md:justify-between">
             <div className="flex items-center space-x-3 mb-6 md:mb-0">
               <CLogo className="text-blue-600" size={24} />
               <span className="text-xl font-semibold text-gray-900">ClipPng</span>
@@ -205,11 +159,7 @@ export function Layout({ searchTerm = '', onSearchChange = () => {} }: LayoutPro
             <div className="flex flex-wrap gap-4 md:gap-6 text-sm">
               <Link 
                 to="/about" 
-                className={`transition-colors ${
-                  location.pathname === '/about'
-                    ? 'text-blue-600'
-                    : 'text-gray-600 hover:text-blue-600'
-                }`}
+                className="text-gray-600 hover:text-blue-600 transition-colors"
               >
                 {t('footer.about')}
               </Link>
@@ -224,9 +174,17 @@ export function Layout({ searchTerm = '', onSearchChange = () => {} }: LayoutPro
               </a>
             </div>
           </div>
-          <div className="mt-6 md:mt-8 pt-6 md:pt-8 border-t border-gray-100">
+          <div className="md:mt-8 md:pt-8 md:border-t md:border-gray-100">
             <p className="text-center text-sm text-gray-500">
-              {t('footer.copyright')}
+              {/* 移动端简化版权信息 */}
+              <span className="md:hidden">
+                {i18n.language === 'en' 
+                  ? '© 2025 ClipPng. All rights reserved.' 
+                  : '© 2025 ClipPng. 保留所有权利。'
+                }
+              </span>
+              {/* PC端完整版权信息 */}
+              <span className="hidden md:inline">{t('footer.copyright')}</span>
             </p>
           </div>
         </div>

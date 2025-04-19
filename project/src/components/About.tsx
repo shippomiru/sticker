@@ -4,53 +4,66 @@ import { useTranslation } from 'react-i18next';
 
 export function About() {
   const { t } = useTranslation();
+  
+  // 正确获取并处理类型
+  const licenseTerms = t('about.license.terms', { returnObjects: true }) as string[];
 
   return (
-    <main className="flex-grow max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-      <div className="space-y-16">
+    <main className="flex-grow max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-16">
+      <div className="space-y-8 sm:space-y-16">
         {/* Header */}
-        <div>
-          <h1 className="text-3xl font-medium text-gray-900">About ClipPng</h1>
+        <div className="border-b border-gray-100 pb-4 sm:pb-0 sm:border-0">
+          <h1 className="text-2xl sm:text-3xl font-medium text-gray-900 text-center sm:text-left">{t('about.title')}</h1>
         </div>
 
         {/* Mission */}
-        <section>
-          <h2 className="text-xl font-medium text-gray-900 mb-4">Our Mission</h2>
-          <p className="text-gray-600 leading-relaxed text-lg">
-            ClipPng is a free image resource platform dedicated to providing high-quality image assets for designers, developers, and creators. Our platform offers a curated collection of professional images that are free to use in both personal and commercial projects.
+        <section className="bg-white rounded-xl p-4 shadow-sm sm:p-0 sm:shadow-none sm:rounded-none sm:bg-transparent">
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-3 sm:mb-4 text-center sm:text-left">
+            {t('about.mission.title')}
+          </h2>
+          <p className="text-sm sm:text-lg text-gray-600 leading-relaxed">
+            {t('about.mission.content')}
           </p>
         </section>
 
         {/* How to Use */}
-        <section>
-          <h2 className="text-xl font-medium text-gray-900 mb-8">How to Use</h2>
-          <div className="space-y-8">
-            <div className="flex items-start gap-5">
-              <Search className="h-6 w-6 text-blue-600 stroke-[1.75] mt-1" />
+        <section className="bg-white rounded-xl p-4 shadow-sm sm:p-0 sm:shadow-none sm:rounded-none sm:bg-transparent">
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 sm:mb-8 text-center sm:text-left">
+            {t('about.howToUse.title')}
+          </h2>
+          <div className="space-y-5 sm:space-y-8">
+            <div className="flex items-start gap-3 sm:gap-5 bg-gray-50 p-3 rounded-lg sm:bg-transparent sm:p-0 sm:rounded-none">
+              <Search className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600 stroke-[1.75] mt-0.5 flex-shrink-0" />
               <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Search Images</h3>
-                <p className="text-lg text-gray-600 leading-relaxed">
-                  Use the search bar at the top to find images instantly. Our search supports both English and Chinese, searching through image titles and descriptions.
+                <h3 className="text-sm sm:text-lg font-medium text-gray-900 mb-2 sm:mb-2">
+                  {t('about.howToUse.search.title')}
+                </h3>
+                <p className="text-sm sm:text-lg text-gray-600 leading-relaxed">
+                  {t('about.howToUse.search.content')}
                 </p>
               </div>
             </div>
 
-            <div className="flex items-start gap-5">
-              <Tags className="h-6 w-6 text-blue-600 stroke-[1.75] mt-1" />
+            <div className="flex items-start gap-3 sm:gap-5 bg-gray-50 p-3 rounded-lg sm:bg-transparent sm:p-0 sm:rounded-none">
+              <Tags className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600 stroke-[1.75] mt-0.5 flex-shrink-0" />
               <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Filter by Tags</h3>
-                <p className="text-lg text-gray-600 leading-relaxed">
-                  Use tags to quickly filter specific types of images. You can combine multiple tags to find exactly what you need.
+                <h3 className="text-sm sm:text-lg font-medium text-gray-900 mb-2 sm:mb-2">
+                  {t('about.howToUse.filter.title')}
+                </h3>
+                <p className="text-sm sm:text-lg text-gray-600 leading-relaxed">
+                  {t('about.howToUse.filter.content')}
                 </p>
               </div>
             </div>
 
-            <div className="flex items-start gap-5">
-              <Download className="h-6 w-6 text-blue-600 stroke-[1.75] mt-1" />
+            <div className="flex items-start gap-3 sm:gap-5 bg-gray-50 p-3 rounded-lg sm:bg-transparent sm:p-0 sm:rounded-none">
+              <Download className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600 stroke-[1.75] mt-0.5 flex-shrink-0" />
               <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Download Images</h3>
-                <p className="text-lg text-gray-600 leading-relaxed">
-                  Each image comes in multiple formats: original, transparent sticker, and white background sticker. Click on any image to access the download options.
+                <h3 className="text-sm sm:text-lg font-medium text-gray-900 mb-2 sm:mb-2">
+                  {t('about.howToUse.download.title')}
+                </h3>
+                <p className="text-sm sm:text-lg text-gray-600 leading-relaxed">
+                  {t('about.howToUse.download.content')}
                 </p>
               </div>
             </div>
@@ -58,39 +71,33 @@ export function About() {
         </section>
 
         {/* License */}
-        <section>
-          <h2 className="text-xl font-medium text-gray-900 mb-4">Image License</h2>
-          <p className="text-lg text-gray-600 leading-relaxed mb-6">
-            All images on ClipPng are free to use for both personal and commercial purposes. Our license terms are simple:
+        <section className="bg-white rounded-xl p-4 shadow-sm sm:p-0 sm:shadow-none sm:rounded-none sm:bg-transparent">
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-3 sm:mb-4 text-center sm:text-left">
+            {t('about.license.title')}
+          </h2>
+          <p className="text-sm sm:text-lg text-gray-600 leading-relaxed mb-3 sm:mb-6">
+            {t('about.license.intro')}
           </p>
-          <ul className="text-lg text-gray-600 space-y-3">
-            <li className="flex items-center gap-3">
-              <span className="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
-              Free to use, no payment required
-            </li>
-            <li className="flex items-center gap-3">
-              <span className="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
-              Suitable for both commercial and non-commercial use
-            </li>
-            <li className="flex items-center gap-3">
-              <span className="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
-              Attribution to ClipPng is appreciated but not required
-            </li>
-            <li className="flex items-center gap-3">
-              <span className="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
-              Reselling unmodified images is not permitted
-            </li>
+          <ul className="text-sm sm:text-lg text-gray-600 space-y-2.5 sm:space-y-3 pl-2">
+            {licenseTerms.map((term, index) => (
+              <li key={index} className="flex items-start gap-2 sm:gap-3">
+                <span className="w-1.5 h-1.5 bg-blue-400 rounded-full mt-1.5"></span>
+                <span>{term}</span>
+              </li>
+            ))}
           </ul>
         </section>
 
         {/* Contact */}
-        <section>
-          <h2 className="text-xl font-medium text-gray-900 mb-4">Contact Us</h2>
-          <p className="text-lg text-gray-600 leading-relaxed mb-6">
-            Have questions, suggestions, or interested in collaboration? We'd love to hear from you:
+        <section className="bg-white rounded-xl p-4 shadow-sm sm:p-0 sm:shadow-none sm:rounded-none sm:bg-transparent">
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-3 sm:mb-4 text-center sm:text-left">
+            {t('about.contact.title')}
+          </h2>
+          <p className="text-sm sm:text-lg text-gray-600 leading-relaxed mb-3 sm:mb-6">
+            {t('about.contact.intro')}
           </p>
-          <div className="space-y-2 text-lg text-gray-600">
-            <p>Email: contact@clippng.online</p>
+          <div className="space-y-1 sm:space-y-2 text-sm sm:text-lg text-gray-600 bg-gray-50 p-3 rounded-lg sm:bg-transparent sm:p-0 sm:rounded-none">
+            <p>{t('about.contact.email')}</p>
           </div>
         </section>
       </div>

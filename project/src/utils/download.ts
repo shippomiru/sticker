@@ -3,6 +3,8 @@
  * 提供多种方法下载图片，确保在不同浏览器和环境下都能正常工作
  */
 
+import { triggerUnsplashDownload } from './unsplash';
+
 /**
  * 使用fetch API下载图片
  * 这种方法可以绕过某些CORS限制
@@ -46,8 +48,6 @@ export function downloadImageWithLink(url: string, filename: string): boolean {
     const link = document.createElement('a');
     link.href = url;
     link.download = filename;
-    link.target = '_blank';
-    link.rel = 'noopener noreferrer';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -174,12 +174,20 @@ export async function downloadImageViaImgElement(url: string, filename: string):
 
 /**
  * 综合下载方法，按顺序尝试不同的下载方式
+ * 
+ * @param url 图片URL
+ * @param filename 下载后的文件名
+ * @returns 是否成功下载
  */
 export async function downloadImage(url: string, filename: string): Promise<boolean> {
   // 处理R2等特殊URL
   url = processR2Url(url);
   
-  // 首先尝试使用fetch方法
+  // 首先尝试使用链接方法（最直接的方法）
+  const linkResult = downloadImageWithLink(url, filename);
+  if (linkResult) return true;
+  
+  // 如果链接方法失败，尝试fetch方法
   const fetchResult = await downloadImageWithFetch(url, filename);
   if (fetchResult) return true;
   
@@ -187,10 +195,7 @@ export async function downloadImage(url: string, filename: string): Promise<bool
   const imgResult = await downloadImageViaImgElement(url, filename);
   if (imgResult) return true;
   
-  // 如果Image元素方法失败，尝试使用链接方法
-  const linkResult = downloadImageWithLink(url, filename);
-  if (linkResult) return true;
-  
   // 最后使用window.open作为后备方案
+  console.warn('所有下载方法都失败，使用window.open作为最后手段');
   return downloadImageWithWindow(url);
 } 

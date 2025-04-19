@@ -428,83 +428,110 @@ def verify_images(batch_date):
     }
 
 def generate_metadata(batch_date):
-    """生成批次图片的元数据
+    """为批次生成元数据
+    
+    1. 查找所有处理后的图片
+    2. 提取图片信息
+    3. 生成描述和标签
+    4. 更新元数据文件
     
     Args:
         batch_date: 批次日期
-        
-    Returns:
-        tuple: (成功状态, 详细信息)
     """
-    logger.info(f"开始生成批次 {batch_date} 图片的元数据...")
+    logger.info(f"正在为批次 {batch_date} 生成元数据...")
+    processed_dir = os.path.join(PROCESSED_IMAGES_DIR, batch_date)
     
-    # 检查批次是否存在并已验收
-    batch = get_batch_status(batch_date)
-    if not batch:
-        logger.error(f"批次 {batch_date} 不存在")
-        return False, {"error": f"批次 {batch_date} 不存在"}
+    if not os.path.exists(processed_dir):
+        logger.error(f"处理后的图片目录不存在: {processed_dir}")
+        return False
     
-    # 设置输入目录和输出文件
-    input_dir = batch["output_dir"]
-    metadata_output = os.path.join(METADATA_DIR, f"metadata_{batch_date}.json")
+    # 确保api_metadata目录存在
+    api_metadata_dir = os.path.join(METADATA_DIR, "api_metadata")
+    ensure_dir_exists(api_metadata_dir)
     
-    # 调用元数据生成脚本
-    try:
-        # generate_metadata.py 脚本接受输入目录和输出文件作为位置参数
-        cmd = ["python3", "generate_metadata.py", input_dir, metadata_output]
-        logger.info(f"执行命令: {' '.join(cmd)}")
+    # 查找所有处理后的图片
+    png_files = []
+    for root, dirs, files in os.walk(processed_dir):
+        for file in files:
+            if file.endswith("_outlined_cropped.png"):
+                png_files.append(os.path.join(root, file))
+    
+    if not png_files:
+        logger.error(f"找不到处理后的图片")
+        return False
+    
+    logger.info(f"找到 {len(png_files)} 个待处理图片")
+    
+    # 使用metadata_generator模块生成元数据
+    from api.processors.metadata_generator import generate_metadata_for_image
+    
+    # 重写元数据生成函数，优先使用保存的API数据
+    def generate_with_api_data(image_path):
+        # 首先使用标准函数生成元数据
+        metadata = generate_metadata_for_image(image_path)
         
-        process = subprocess.Popen(
-            cmd, 
-            stdout=subprocess.PIPE, 
-            stderr=subprocess.PIPE,
-            universal_newlines=True
-        )
+        if metadata and metadata.get('unsplash_id'):
+            # 尝试查找对应的API元数据
+            unsplash_id = metadata['unsplash_id']
+            api_metadata_path = os.path.join(api_metadata_dir, f"{unsplash_id}.json")
+            
+            if os.path.exists(api_metadata_path):
+                try:
+                    with open(api_metadata_path, 'r', encoding='utf-8') as f:
+                        api_data = json.load(f)
+                    
+                    logger.info(f"找到并使用API元数据: {unsplash_id}")
+                    
+                    # 使用API数据更新元数据
+                    if api_data.get('download_location'):
+                        metadata['download_location'] = api_data['download_location']
+                    
+                    if api_data.get('author'):
+                        metadata['author'] = api_data['author']
+                    
+                    # 可以根据需要更新更多字段
+                    # ...
+                    
+                    logger.info(f"已使用API数据更新元数据: {unsplash_id}")
+                except Exception as e:
+                    logger.error(f"读取API元数据失败: {e}")
         
-        # 实时输出处理日志
-        stdout, stderr = process.communicate()
-        
-        if process.returncode != 0:
-            logger.error(f"生成元数据失败: {stderr}")
-            return False, {"error": stderr}
-        
-        logger.info(f"成功生成批次 {batch_date} 图片的元数据")
-        
-        # 检查元数据文件是否生成
-        if not os.path.exists(metadata_output):
-            # 检查是否生成在默认位置
-            default_output = "api/data/images.json"
-            if os.path.exists(default_output):
-                # 如果生成在默认位置，复制到预期位置
-                shutil.copy(default_output, metadata_output)
-                logger.info(f"已将元数据从 {default_output} 复制到 {metadata_output}")
-            else:
-                logger.warning(f"元数据文件未找到: {metadata_output} 或 {default_output}")
-                return False, {"warning": "元数据文件未生成"}
-        
-        # 读取生成的元数据数量
+        return metadata
+    
+    # 处理所有图片并生成元数据
+    all_metadata = []
+    for image_path in png_files:
         try:
-            with open(metadata_output, 'r', encoding='utf-8') as f:
-                metadata = json.load(f)
-                metadata_count = len(metadata) if isinstance(metadata, list) else 0
-        except:
-            try:
-                # 尝试从默认位置读取
-                with open("api/data/images.json", 'r', encoding='utf-8') as f:
-                    metadata = json.load(f)
-                    metadata_count = len(metadata) if isinstance(metadata, list) else 0
-            except:
-                metadata_count = 0
-        
-        return True, {
-            "status": "已完成",
-            "metadata_file": metadata_output,
-            "metadata_count": metadata_count
-        }
-        
-    except Exception as e:
-        logger.error(f"生成元数据时出错: {str(e)}")
-        return False, {"error": str(e)}
+            metadata = generate_with_api_data(image_path)
+            if metadata:
+                all_metadata.append(metadata)
+                logger.info(f"已生成元数据: {metadata.get('id')}")
+            else:
+                logger.warning(f"无法为图片生成元数据: {image_path}")
+        except Exception as e:
+            logger.error(f"处理图片时出错: {image_path} - {str(e)}")
+    
+    if not all_metadata:
+        logger.error("没有生成任何元数据")
+        return False
+    
+    # 保存元数据到文件
+    batch_metadata_dir = os.path.join(METADATA_DIR, batch_date)
+    ensure_dir_exists(batch_metadata_dir)
+    batch_metadata_file = os.path.join(batch_metadata_dir, "metadata.json")
+    
+    with open(batch_metadata_file, 'w', encoding='utf-8') as f:
+        json.dump(all_metadata, f, indent=2, ensure_ascii=False)
+    
+    logger.info(f"已生成 {len(all_metadata)} 条元数据，保存到: {batch_metadata_file}")
+    
+    # 更新工作流状态
+    update_workflow_stage(load_workflow_state(batch_date), "metadata_added", {
+        "count": len(all_metadata),
+        "metadata_file": batch_metadata_file
+    })
+    
+    return True
 
 def compress_png_images(batch_date, method="both", quality=80, oxipng_level=2):
     """压缩批次中的PNG图片
@@ -1055,13 +1082,13 @@ def main():
                 print(f"验收未通过: {details.get('reason', '')}")
     
     elif args.command == 'metadata':
-        success, details = generate_metadata(batch_date)
+        success = generate_metadata(batch_date)
         
         if success:
-            update_workflow_stage(state, "metadata_added", details)
+            update_workflow_stage(state, "metadata_added")
             print_workflow_status(state)
         else:
-            print(f"生成元数据失败: {details.get('error', '') or details.get('warning', '')}")
+            print(f"生成元数据失败")
     
     elif args.command == 'compress':
         success, details = compress_png_images(

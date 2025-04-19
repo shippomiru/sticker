@@ -14,6 +14,14 @@ from PIL import Image
 import spacy
 from transformers import CLIPProcessor, CLIPModel, pipeline
 import nltk
+import logging
+
+# 设置日志记录
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# API元数据目录
+API_METADATA_DIR = "metadata/api_metadata"
 
 # 加载spaCy模型（全局加载一次，避免重复加载）
 try:
@@ -86,49 +94,49 @@ def extract_id_from_filename(filename):
         # 如果找不到符合格式的ID，直接使用文件名
         return base_name
 
-def extract_unsplash_id(filename):
-    """从文件名中提取Unsplash图片ID
+def load_api_metadata(unsplash_id):
+    """从保存的API响应中加载元数据
     
-    Unsplash图片ID是文件名中位于"unsplash"之前的那部分
-    例如：
-      aaron-huber-V09Io5ln-Qo-unsplash -> ID是V09Io5ln-Qo
-      ayako-h7Dw2hF4e0A-unsplash -> ID是h7Dw2hF4e0A
+    Args:
+        unsplash_id: Unsplash图片ID
+        
+    Returns:
+        dict: API元数据，加载失败则返回None
     """
-    # 移除扩展名和处理后缀
-    base_name = filename.replace("_outlined_cropped.png", "").replace("_cropped.png", "")
-    if base_name.endswith('.jpg') or base_name.endswith('.jpeg') or base_name.endswith('.png'):
-        base_name = os.path.splitext(base_name)[0]
-    
-    # 查找是否包含"unsplash"
-    if "unsplash" not in base_name.lower():
+    if not unsplash_id:
         return None
+        
+    metadata_path = os.path.join(API_METADATA_DIR, f"{unsplash_id}.json")
+    if os.path.exists(metadata_path):
+        try:
+            with open(metadata_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except json.JSONDecodeError:
+            logger.error(f"加载API元数据文件失败: {metadata_path}")
+    return None
+
+def extract_unsplash_id(filename):
+    """从文件名中提取Unsplash ID
     
-    # 将文件名按连字符分割
-    parts = base_name.split('-')
+    Args:
+        filename: 图片文件名
+        
+    Returns:
+        str: Unsplash图片ID，如果无法提取则返回None
+    """
+    # 尝试多种可能的格式提取ID
+    patterns = [
+        r'(?:^|-)([a-zA-Z0-9_-]{11})(?:-|$)',  # 匹配"-ID-"格式
+        r'([a-zA-Z0-9_-]{11})\.(?:jpe?g|png)',  # 匹配"ID.jpg"格式
+        r'_([a-zA-Z0-9_-]{11})(?:_|\.)'        # 匹配"_ID_"或"_ID."格式
+    ]
     
-    # 找到"unsplash"的位置
-    unsplash_index = -1
-    for i, part in enumerate(parts):
-        if part.lower() == "unsplash":
-            unsplash_index = i
-            break
+    for pattern in patterns:
+        match = re.search(pattern, filename)
+        if match:
+            return match.group(1)
     
-    # 如果找到了"unsplash"且前面有部分
-    if unsplash_index > 0:
-        # 就取"unsplash"前面的那部分作为ID
-        id_part = parts[unsplash_index - 1]
-        # 确保ID部分看起来像有效ID（字母数字组合，适当长度）
-        if 8 <= len(id_part) <= 13 and re.match(r'^[a-zA-Z0-9_-]+$', id_part):
-            return id_part
-    
-    # 如果上述方法失败，尝试使用正则表达式查找最靠近"unsplash"的符合ID格式的部分
-    # 典型格式如: aaron-huber-V09Io5ln-Qo-unsplash
-    id_pattern = r'-([a-zA-Z0-9_-]{8,13})-unsplash'
-    match = re.search(id_pattern, base_name, re.IGNORECASE)
-    if match:
-        return match.group(1)
-    
-    # 如果未找到符合标准的ID，返回None
+    logger.warning(f"无法从文件名提取Unsplash ID: {filename}")
     return None
 
 def find_original_image(processed_image_path):
@@ -434,92 +442,75 @@ def classify_image_to_predefined_tags(caption, extracted_noun=None):
     # 只返回第一个匹配到的标签
     return matched_tags[0] if matched_tags else "others"
 
-def generate_metadata_for_image(image_path):
-    """为单个图片生成元数据"""
-    print(f"\n处理图片: {image_path}")
+def generate_metadata_for_image(image_path, image_name):
+    """为单个图片生成元数据
     
-    # 获取文件名和基本信息
-    filename = os.path.basename(image_path)
+    Args:
+        image_path: 图片完整路径
+        image_name: 图片名称（不含路径）
+        
+    Returns:
+        dict: 图片的元数据
+    """
+    # 提取Unsplash ID
+    unsplash_id = extract_unsplash_id(image_name)
     
-    # 提取文件名中的基本部分和ID
-    filename_base = extract_id_from_filename(filename)
+    # 尝试从API元数据中加载信息
+    api_metadata = load_api_metadata(unsplash_id) if unsplash_id else None
     
-    # 确定图片类型（带白边或透明）
-    is_outlined = "_outlined_" in filename
-    image_type = "outlined" if is_outlined else "transparent"
+    # 如果有API元数据，优先使用
+    if api_metadata:
+        logger.info(f"使用API元数据生成图片 {image_name} 的信息")
+        
+        # 构建元数据
+        metadata = {
+            "id": image_name.replace(".png", ""),
+            "caption": api_metadata.get("description") or api_metadata.get("alt_description") or "",
+            "tags": [],  # API中没有明确的tags字段，可以在前端添加
+            "author": api_metadata.get("author", ""),
+            "unsplash_id": api_metadata.get("unsplash_id", unsplash_id),
+            "original_url": f"https://unsplash.com/photos/{unsplash_id}",
+            "download_location": api_metadata.get("download_location", ""),
+            "username": api_metadata.get("username", "")
+        }
+        
+        # 确保图片URL正确（增加/images/前缀如果需要）
+        if not image_path.startswith("/images/"):
+            image_path = f"/images/{image_path}"
+        metadata["image"] = image_path
+        
+        return metadata
     
-    # 获取对应的另一种类型图片的文件名
-    if is_outlined:
-        transparent_filename = filename.replace("_outlined_cropped.png", "_cropped.png")
-    else:
-        outlined_filename = filename.replace("_cropped.png", "_outlined_cropped.png")
+    # 如果没有API元数据，回退到传统解析方式
+    logger.info(f"使用传统方式解析图片 {image_name} 的信息")
     
-    # 找到原始图片并识别主体
-    original_image = find_original_image(image_path)
-    print(f"找到原始图片: {original_image}")
-    caption = identify_main_subject(original_image)
-    
-    if not caption:
-        print(f"为图片 {filename} 识别主体失败，使用默认描述")
-        caption = "An object"
-    
-    # 使用语义分析提取主体名词 (仅用于参考)
-    main_noun = extract_main_noun(caption)
-    
-    # 使用预定义标签分类图片
-    tags = classify_image_to_predefined_tags(caption, main_noun)
-    
-    # 从文件名中提取作者名称，但排除ID部分
-    # 假设Unsplash文件名格式为: 作者名-可能的标题-ID-unsplash
-    
-    # 先找到Unsplash ID，然后排除ID及之后的部分
-    unsplash_id = extract_unsplash_id(filename_base)
-    name_parts = []
-    
-    if unsplash_id:
-        parts = filename_base.split("-")
-        for part in parts:
-            if part.lower() == "unsplash" or part == unsplash_id:
-                break
-            name_parts.append(part)
-    else:
-        # 如果无法找到ID，使用前两部分作为作者名
-        parts = filename_base.split("-")
-        name_parts = parts[:min(2, len(parts))]
-    
-    # 格式化作者名称
-    author = " ".join(name_parts).title().replace("-", " ")
-    if not author:
-        author = "Unknown"
-    
-    # 生成slug（用于URL）- 使用完整的caption而不只是main_noun
-    slug = slugify_text(caption)
-    
-    # 确保图片URL包含/images/前缀
-    png_path = transparent_filename if is_outlined else filename
-    sticker_path = filename if is_outlined else outlined_filename
-    
-    # 添加/images/前缀，如果不存在
-    if not png_path.startswith("/images/"):
-        png_path = f"/images/{png_path}"
-    if not sticker_path.startswith("/images/"):
-        sticker_path = f"/images/{sticker_path}"
+    # 从文件名解析作者（标准命名格式：作者名-ID-unsplash）
+    author = ""
+    if "-" in image_name and unsplash_id:
+        parts = image_name.split("-")
+        if len(parts) >= 3:
+            author = parts[0].replace("-", " ").title()  # 将短横线替换为空格并首字母大写
     
     # 构建元数据
     metadata = {
-        "id": filename_base,  # 使用文件名作为ID
-        "caption": caption,
-        "description": f"High quality free PNG image with transparent background. {caption} photo by {author} on Unsplash, processed for free use.",
-        "tags": tags,
-        "slug": slug,
+        "id": image_name.replace(".png", ""),
+        "caption": "",  # 没有来源信息时无法获取说明
+        "tags": [],
         "author": author,
-        "original_url": f"https://unsplash.com/photos/{filename_base}" if "unsplash" in filename_base else "",
-        "png_url": png_path,
-        "sticker_url": sticker_path,
-        "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        "unsplash_id": unsplash_id
     }
     
-    print(f"元数据生成完成: {json.dumps(metadata, indent=2, ensure_ascii=False)}")
+    # 如果有unsplash_id，添加原始URL和下载链接
+    if unsplash_id:
+        metadata["original_url"] = f"https://unsplash.com/photos/{unsplash_id}"
+        # 构造一个基础下载链接
+        metadata["download_location"] = f"https://api.unsplash.com/photos/{unsplash_id}/download"
+    
+    # 确保图片URL正确（增加/images/前缀如果需要）
+    if not image_path.startswith("/images/"):
+        image_path = f"/images/{image_path}"
+    metadata["image"] = image_path
+    
     return metadata
 
 def process_images_batch(input_dir, output_file, limit=None):
@@ -549,7 +540,7 @@ def process_images_batch(input_dir, output_file, limit=None):
     missing_originals = []  # 跟踪未找到原始图片的条目
     
     for image_path in png_files:
-        metadata = generate_metadata_for_image(image_path)
+        metadata = generate_metadata_for_image(image_path, os.path.basename(image_path))
         if metadata:
             # 检查slug是否重复，如果重复则添加后缀
             original_slug = metadata["slug"]

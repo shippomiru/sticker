@@ -9,11 +9,15 @@ export interface ImageData {
   main_noun?: string; // 从元数据中提取的主体名词，用于SEO优化
   slug: string;
   author: string;
+  username?: string; // Unsplash摄影师的用户名，用于构建归属链接
+  photographer_url?: string; // Unsplash摄影师的主页链接
   title: string;
   original_url: string;
   png_url: string;
   sticker_url: string;
   created_at: string;
+  unsplash_id?: string; // Unsplash图片ID
+  download_location?: string; // Unsplash下载触发链接
 }
 
 // R2 CDN基础URL，从环境变量中获取

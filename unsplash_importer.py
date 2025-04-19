@@ -45,6 +45,9 @@ UNSPLASH_IMAGES_DIR = "unsplash-images"
 METADATA_DIR = "metadata"
 ID_INDEX_FILE = os.path.join(METADATA_DIR, "unsplash_id_index.json")
 
+# 图片元数据文件
+IMAGES_JSON_FILE = "api/data/images.json"
+
 # 确保必要的目录存在
 def ensure_dir_exists(directory):
     """确保目录存在，不存在则创建"""
@@ -256,6 +259,44 @@ def search_photos(query, per_page=10, page=1, order_by='relevant'):
         logger.error(f"搜索图片时出错: {str(e)}")
         return [], 0, 0
 
+def load_images_metadata():
+    """加载图片元数据"""
+    if os.path.exists(IMAGES_JSON_FILE):
+        try:
+            with open(IMAGES_JSON_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except json.JSONDecodeError:
+            logger.error(f"images.json 格式错误")
+            return []
+    logger.warning(f"images.json 不存在")
+    return []
+
+def check_image_exists_by_api_id(unsplash_id):
+    """根据API返回的unsplash_id检查图片是否已存在
+    
+    Args:
+        unsplash_id: Unsplash图片ID
+        
+    Returns:
+        tuple: (是否存在, 如果存在则返回图片元数据)
+    """
+    if not unsplash_id:
+        return False, None
+    
+    # 首先尝试从images.json中查找
+    images_data = load_images_metadata()
+    for image in images_data:
+        if image.get("unsplash_id") == unsplash_id:
+            logger.info(f"在元数据中找到图片 {unsplash_id}: {image.get('id')}")
+            return True, image
+    
+    # 如果在元数据中没找到，再尝试从传统索引中查找
+    exists, existing_path = check_id_exists(unsplash_id)
+    if exists:
+        return True, {"id": os.path.basename(existing_path), "path": existing_path}
+    
+    return False, None
+
 def download_photo(photo_data, save_dir):
     """下载 Unsplash 图片
     
@@ -264,7 +305,7 @@ def download_photo(photo_data, save_dir):
         save_dir: 保存目录
         
     Returns:
-        str: 保存的文件路径，失败则返回 None
+        tuple: (保存的文件路径, 图片元数据) 失败则返回 (None, None)
     """
     ensure_dir_exists(save_dir)
     
@@ -272,11 +313,19 @@ def download_photo(photo_data, save_dir):
         photo_id = photo_data['id']
         download_url = photo_data['urls']['full']
         
-        # 先检查是否已存在
+        # 首先使用API ID检查是否已存在
+        exists, existing_metadata = check_image_exists_by_api_id(photo_id)
+        if exists:
+            existing_path = existing_metadata.get("path", "未知路径")
+            logger.info(f"图片 {photo_id} 已存在: {existing_path}")
+            return existing_path, existing_metadata
+        
+        # 兼容性检查 - 使用传统方法再次检查
+        # 此检查可在未来版本中移除，目前为过渡阶段保留
         exists, existing_path = check_id_exists(photo_id)
         if exists:
-            logger.info(f"图片 {photo_id} 已存在: {existing_path}")
-            return existing_path
+            logger.info(f"图片 {photo_id} 已存在(传统索引): {existing_path}")
+            return existing_path, None
         
         # 构造保存文件名：原始用户名-ID-unsplash.jpg
         user_name = photo_data['user']['username'].lower()
@@ -306,14 +355,36 @@ def download_photo(photo_data, save_dir):
             # 添加到索引
             add_to_index(photo_id, save_path)
             
+            # 提取API返回的元数据，用于后续处理
+            api_metadata = {
+                'unsplash_id': photo_id,
+                'download_location': download_location,
+                'author': photo_data['user']['name'],
+                'username': photo_data['user']['username'],
+                'photographer_url': photo_data['user']['links']['html'],
+                'description': photo_data.get('description', ''),
+                'alt_description': photo_data.get('alt_description', ''),
+                'api_data': photo_data  # 存储完整的API响应，以备将来需要
+            }
+            
+            # 保存元数据到本地文件
+            metadata_dir = os.path.join(METADATA_DIR, "api_metadata")
+            ensure_dir_exists(metadata_dir)
+            metadata_path = os.path.join(metadata_dir, f"{photo_id}.json")
+            
+            with open(metadata_path, 'w', encoding='utf-8') as f:
+                json.dump(api_metadata, f, indent=2, ensure_ascii=False)
+            
             logger.info(f"图片已下载: {save_path}")
-            return save_path
+            logger.info(f"API元数据已保存: {metadata_path}")
+            
+            return save_path, api_metadata
         else:
             logger.error(f"下载图片失败，状态码: {response.status_code}")
-            return None
+            return None, None
     except Exception as e:
         logger.error(f"下载图片时发生错误: {e}")
-        return None
+        return None, None
 
 # 图片导入功能
 def import_photo_by_id(photo_id, batch_dir):
@@ -324,19 +395,20 @@ def import_photo_by_id(photo_id, batch_dir):
         batch_dir: 批次目录
         
     Returns:
-        str: 保存的文件路径，失败则返回 None
+        tuple: (保存的文件路径, 图片元数据) 失败则返回 (None, None)
     """
-    # 检查是否已存在
-    exists, existing_path = check_id_exists(photo_id)
+    # 使用新方法检查是否已存在
+    exists, existing_metadata = check_image_exists_by_api_id(photo_id)
     if exists:
-        logger.info(f"图片 {photo_id} 已存在: {existing_path}")
-        return existing_path
+        path = existing_metadata.get("path") if isinstance(existing_metadata, dict) else "未知路径"
+        logger.info(f"图片 {photo_id} 已存在: {path}")
+        return path, existing_metadata
     
     # 获取图片信息
     photo_data = get_photo_by_id(photo_id)
     if not photo_data:
         logger.error(f"无法获取图片 {photo_id} 的信息")
-        return None
+        return None, None
     
     # 下载图片
     return download_photo(photo_data, batch_dir)
@@ -369,7 +441,7 @@ def import_photos_by_ids(photo_ids, batch_dir):
         time.sleep(1)
         
         # 导入图片
-        file_path = import_photo_by_id(photo_id, batch_dir)
+        file_path, _ = import_photo_by_id(photo_id, batch_dir)
         if file_path:
             imported_paths.append(file_path)
         else:
@@ -455,7 +527,7 @@ def import_photos_by_query(query, count, batch_dir, order_by='relevant', per_pag
             time.sleep(1)
             
             # 下载图片
-            file_path = download_photo(photo_data, batch_dir)
+            file_path, _ = download_photo(photo_data, batch_dir)
             if file_path:
                 imported_paths.append(file_path)
                 if len(imported_paths) >= count:
