@@ -3,7 +3,7 @@
   <!-- 主页 -->
   <url>
     <loc>https://clippng.online/</loc>
-    <lastmod>2025-04-13</lastmod>
+    <lastmod>2025-04-20</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
@@ -11,153 +11,218 @@
   <!-- 关于页面 -->
   <url>
     <loc>https://clippng.online/about</loc>
-    <lastmod>2025-04-13</lastmod>
+    <lastmod>2025-04-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   
-  <!-- 图片详情页面 - 由系统自动生成 -->
-  <!-- 飞机图片 -->
+  <!-- 标签分类页面 -->
+  <url>
+    <loc>https://clippng.online/airplane-clipart</loc>
+    <lastmod>2025-04-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://clippng.online/apple-clipart</loc>
+    <lastmod>2025-04-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://clippng.online/baby-clipart</loc>
+    <lastmod>2025-04-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://clippng.online/bird-clipart</loc>
+    <lastmod>2025-04-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://clippng.online/birthday-clipart</loc>
+    <lastmod>2025-04-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://clippng.online/book-clipart</loc>
+    <lastmod>2025-04-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://clippng.online/camera-clipart</loc>
+    <lastmod>2025-04-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://clippng.online/car-clipart</loc>
+    <lastmod>2025-04-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://clippng.online/cat-clipart</loc>
+    <lastmod>2025-04-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://clippng.online/christmas-clipart</loc>
+    <lastmod>2025-04-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://clippng.online/crown-png</loc>
+    <lastmod>2025-04-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://clippng.online/dog-clipart</loc>
+    <lastmod>2025-04-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://clippng.online/flower-clipart</loc>
+    <lastmod>2025-04-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://clippng.online/gun-png</loc>
+    <lastmod>2025-04-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://clippng.online/money-png</loc>
+    <lastmod>2025-04-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://clippng.online/pumpkin-clipart</loc>
+    <lastmod>2025-04-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://clippng.online/other-png</loc>
+    <lastmod>2025-04-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  
+  <!-- 图片详情页面 - 按热门图片和最新更新排序 -->
   <url>
     <loc>https://clippng.online/a-large-passenger-jet-flying-in-the-sky</loc>
-    <lastmod>2025-04-13</lastmod>
+    <lastmod>2025-04-20</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
+    <priority>0.7</priority>
   </url>
-  
-  <!-- 枪支图片 -->
   <url>
     <loc>https://clippng.online/a-revolver-gun-on-a-wooden-table</loc>
-    <lastmod>2025-04-13</lastmod>
+    <lastmod>2025-04-20</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
+    <priority>0.7</priority>
   </url>
-  
-  <!-- 花卉图片 -->
+  <url>
+    <loc>https://clippng.online/a-plane-flying-in-the-sky</loc>
+    <lastmod>2025-04-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://clippng.online/a-vase-with-white-flowers-in-it</loc>
+    <lastmod>2025-04-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
   <url>
     <loc>https://clippng.online/a-close-up-of-a-flower-with-a-black-background</loc>
-    <lastmod>2025-04-13</lastmod>
+    <lastmod>2025-04-20</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
+    <priority>0.7</priority>
   </url>
-  
-  <!-- 狗狗图片 -->
+  <url>
+    <loc>https://clippng.online/a-large-passenger-plane-flying-through-the-sky</loc>
+    <lastmod>2025-04-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
   <url>
     <loc>https://clippng.online/a-small-puppy-is-running-in-the-woods</loc>
-    <lastmod>2025-04-13</lastmod>
+    <lastmod>2025-04-20</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
+    <priority>0.7</priority>
   </url>
-  
-  <!-- 南瓜图片 -->
   <url>
     <loc>https://clippng.online/a-small-pumpkin-sitting-on-a-table</loc>
-    <lastmod>2025-04-13</lastmod>
+    <lastmod>2025-04-20</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
+    <priority>0.7</priority>
   </url>
-  
-  <!-- 猫咪图片 -->
   <url>
     <loc>https://clippng.online/a-cat-sitting-on-a-white-bench</loc>
-    <lastmod>2025-04-13</lastmod>
+    <lastmod>2025-04-20</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
+    <priority>0.7</priority>
   </url>
-  
-  <!-- 相机图片 -->
+  <url>
+    <loc>https://clippng.online/a-red-apple-with-a-bite-on-it</loc>
+    <lastmod>2025-04-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
   <url>
     <loc>https://clippng.online/a-camera-with-a-nik-lens-attached-to-it</loc>
-    <lastmod>2025-04-13</lastmod>
+    <lastmod>2025-04-20</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
+    <priority>0.7</priority>
   </url>
-  
-  <!-- 苹果图片 -->
   <url>
     <loc>https://clippng.online/a-bowl-of-apples-and-two-apples-on-a-table</loc>
-    <lastmod>2025-04-13</lastmod>
+    <lastmod>2025-04-20</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
+    <priority>0.7</priority>
   </url>
-  
-  <!-- 其他小狗图片 -->
   <url>
     <loc>https://clippng.online/a-small-dog-sitting-on-a-orange-background</loc>
-    <lastmod>2025-04-13</lastmod>
+    <lastmod>2025-04-20</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
+    <priority>0.7</priority>
   </url>
-  
-  <!-- 另一个飞机图片 -->
   <url>
     <loc>https://clippng.online/a-large-white-airplane-flying-through-a-cloudy-sky</loc>
-    <lastmod>2025-04-13</lastmod>
+    <lastmod>2025-04-20</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
+    <priority>0.7</priority>
   </url>
-  
-  <!-- 圣诞树图片 -->
   <url>
     <loc>https://clippng.online/a-small-christmas-tree-with-ornaments-and-decorations</loc>
-    <lastmod>2025-04-13</lastmod>
+    <lastmod>2025-04-20</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
+    <priority>0.7</priority>
   </url>
   
-  <!-- 类别标签页（按标签筛选） -->
+  <!-- 最近更新的图片页面（从元数据更新日志） -->
   <url>
-    <loc>https://clippng.online/?tag=airplane</loc>
-    <lastmod>2025-04-13</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.6</priority>
+    <loc>https://clippng.online/qatar-a380-300-qatar-airways-qatar-airways</loc>
+    <lastmod>2025-04-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://clippng.online/?tag=gun</loc>
-    <lastmod>2025-04-13</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://clippng.online/?tag=flower</loc>
-    <lastmod>2025-04-13</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://clippng.online/?tag=dog</loc>
-    <lastmod>2025-04-13</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://clippng.online/?tag=pumpkin</loc>
-    <lastmod>2025-04-13</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://clippng.online/?tag=cat</loc>
-    <lastmod>2025-04-13</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://clippng.online/?tag=camera</loc>
-    <lastmod>2025-04-13</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://clippng.online/?tag=apple</loc>
-    <lastmod>2025-04-13</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://clippng.online/?tag=christmas</loc>
-    <lastmod>2025-04-13</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.6</priority>
+    <loc>https://clippng.online/american-airlines-a320-300</loc>
+    <lastmod>2025-04-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
   </url>
 </urlset> 
