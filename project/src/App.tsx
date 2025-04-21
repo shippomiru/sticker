@@ -39,6 +39,7 @@ function App() {
           name="description" 
           content="Browse and download thousands of PNGs, clipart graphics, and stickers for decoration, crafts, digital art, or school projects. All files are free to use." 
         />
+        <link rel="canonical" href="https://clippng.online/" />
       </Helmet>
       <Routes>
         <Route path="/" element={<Layout searchTerm={searchTerm} onSearchChange={setSearchTerm} />}>
