@@ -18,6 +18,7 @@ const resources = {
       showTags: 'show',
       hideTags: 'hide',
       foundImages: 'Found {{count}} images matching your criteria',
+      relatedTags: 'Related Categories:',
       footer: {
         about: 'About',
         contact: 'Contact',
@@ -79,6 +80,7 @@ const resources = {
       showTags: '显示',
       hideTags: '隐藏',
       foundImages: '找到 {{count}} 张符合条件的图片',
+      relatedTags: '相关分类：',
       footer: {
         about: '关于我们',
         contact: '联系我们',

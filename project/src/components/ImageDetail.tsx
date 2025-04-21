@@ -93,8 +93,8 @@ export function ImageDetail({ onClose }: ImageDetailProps) {
   // 优化SEO标题，使用更精确的名词
   const seoTitle = `${capitalizedTag} Clipart – Transparent ${capitalizedTag} PNG Sticker | ClipPng`;
   
-  // 优化SEO描述，添加更多细节
-  const seoDescription = `Download free ${mainTag} clipart PNG with transparent background – ${image.caption}. Perfect for presentations, lesson plans, YouTube thumbnails, digital journals, and DIY collages.`;
+  // 优化SEO描述，移除图片标题，只保留通用描述
+  const seoDescription = `Download free ${mainTag} clipart PNG with transparent background – perfect for presentations, lesson plans, YouTube thumbnails, digital journals, and DIY collages.`;
   const imageAlt = `${image.caption} - transparent background png & clipart`;
 
   // 生成归属链接

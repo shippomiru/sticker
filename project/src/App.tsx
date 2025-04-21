@@ -5,6 +5,7 @@ import Layout from './components/Layout';
 import ImageGrid from './components/ImageGrid';
 import ImageDetail from './components/ImageDetail';
 import About from './components/About';
+import TagPage from './components/TagPage';
 
 function App() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -48,8 +49,25 @@ function App() {
               onTagsChange={setSelectedTags}
             />
           } />
-          <Route path="/about" element={<About />} />
-          <Route path="/:slug" element={<ImageDetail onClose={handleDetailClose} />} />
+          <Route path="about" element={<About />} />
+          <Route path="airplane-clipart" element={<TagPage />} />
+          <Route path="apple-clipart" element={<TagPage />} />
+          <Route path="baby-clipart" element={<TagPage />} />
+          <Route path="bird-clipart" element={<TagPage />} />
+          <Route path="birthday-clipart" element={<TagPage />} />
+          <Route path="book-clipart" element={<TagPage />} />
+          <Route path="camera-clipart" element={<TagPage />} />
+          <Route path="car-clipart" element={<TagPage />} />
+          <Route path="cat-clipart" element={<TagPage />} />
+          <Route path="christmas-clipart" element={<TagPage />} />
+          <Route path="crown-png" element={<TagPage />} />
+          <Route path="dog-clipart" element={<TagPage />} />
+          <Route path="flower-clipart" element={<TagPage />} />
+          <Route path="gun-png" element={<TagPage />} />
+          <Route path="money-png" element={<TagPage />} />
+          <Route path="pumpkin-clipart" element={<TagPage />} />
+          <Route path="other-png" element={<TagPage />} />
+          <Route path=":slug" element={<ImageDetail onClose={handleDetailClose} />} />
         </Route>
       </Routes>
     </Router>

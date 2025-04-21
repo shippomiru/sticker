@@ -11,9 +11,17 @@ interface ImageGridProps {
   searchTerm: string;
   selectedTags?: string[];
   onTagsChange?: (tags: string[]) => void;
+  hideTagSelector?: boolean;
+  onSearchChange?: (term: string) => void;
 }
 
-export default function ImageGrid({ searchTerm = '', selectedTags = [], onTagsChange }: ImageGridProps) {
+export default function ImageGrid({ 
+  searchTerm = '', 
+  selectedTags = [], 
+  onTagsChange,
+  hideTagSelector = false,
+  onSearchChange
+}: ImageGridProps) {
   const { t } = useTranslation();
   const [displayedImages, setDisplayedImages] = useState<typeof images>([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -117,17 +125,35 @@ export default function ImageGrid({ searchTerm = '', selectedTags = [], onTagsCh
     return a.localeCompare(b);
   });
 
-  const toggleTag = (tag: string) => {
+  // 标签到slug的映射表
+  const TAG_TO_SLUG: Record<string, string> = {
+    'airplane': 'airplane-clipart',
+    'apple': 'apple-clipart',
+    'baby': 'baby-clipart',
+    'bird': 'bird-clipart',
+    'birthday': 'birthday-clipart',
+    'book': 'book-clipart',
+    'camera': 'camera-clipart',
+    'car': 'car-clipart',
+    'cat': 'cat-clipart',
+    'christmas': 'christmas-clipart',
+    'crown': 'crown-png',
+    'dog': 'dog-clipart',
+    'flower': 'flower-clipart',
+    'gun': 'gun-png',
+    'money': 'money-png',
+    'pumpkin': 'pumpkin-clipart',
+    'others': 'other-png'
+  };
+
+  // 修改标签点击函数，将筛选改为导航
+  const handleTagClick = (tag: string) => {
     // 记录标签点击
     trackTagClick(tag);
     
-    // 重置为第一页
-    setCurrentPage(1);
-    
-    // 切换标签，使用父组件提供的回调来维持状态
-    if (onTagsChange) {
-      onTagsChange(selectedTags.includes(tag) ? [] : [tag]);
-    }
+    // 导航到标签专属页面
+    const tagSlug = TAG_TO_SLUG[tag] || tag;
+    navigate(`/${tagSlug}`);
   };
 
   // 使用筛选后的图片
@@ -160,49 +186,48 @@ export default function ImageGrid({ searchTerm = '', selectedTags = [], onTagsCh
 
   return (
     <>
-      {/* Tags - 标签部分移动端可折叠 */}
-      <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-2">
-            <Tags className="h-5 w-5 text-blue-600" />
-            <h2 className="text-lg font-semibold text-gray-900">{t('filterByTags')}</h2>
+      {/* Tags - 标签部分移动端可折叠，在hideTagSelector为true时隐藏 */}
+      {!hideTagSelector && (
+        <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-2">
+              <Tags className="h-5 w-5 text-blue-600" />
+              <h2 className="text-lg font-semibold text-gray-900">{t('filterByTags')}</h2>
+            </div>
+            
+            {/* 移动端展开/折叠按钮 */}
+            <button 
+              className="md:hidden flex items-center text-sm text-gray-700 hover:text-blue-600"
+              onClick={() => setShowTagsOnMobile(!showTagsOnMobile)}
+            >
+              <span>{showTagsOnMobile ? t('hideTags') : t('showTags')}</span>
+              <ChevronDown 
+                className={`h-4 w-4 ml-1 transition-transform ${showTagsOnMobile ? 'rotate-180' : ''}`}
+              />
+            </button>
           </div>
           
-          {/* 移动端展开/折叠按钮 */}
-          <button 
-            className="md:hidden flex items-center text-sm text-gray-700 hover:text-blue-600"
-            onClick={() => setShowTagsOnMobile(!showTagsOnMobile)}
-          >
-            <span>{showTagsOnMobile ? t('hideTags') : t('showTags')}</span>
-            <ChevronDown 
-              className={`h-4 w-4 ml-1 transition-transform ${showTagsOnMobile ? 'rotate-180' : ''}`}
-            />
-          </button>
-        </div>
-        
-        <div className={`${showTagsOnMobile ? 'max-h-64' : 'max-h-0 md:max-h-none'} overflow-y-auto md:overflow-visible transition-all duration-300 ease-in-out md:max-h-none`}>
-          <div className="flex flex-wrap gap-2 mb-2">
-            {allTags.map((tag) => (
-              <button
-                key={tag}
-                onClick={() => toggleTag(tag)}
-                className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-sm font-medium transition-all ${
-                  selectedTags.includes(tag)
-                    ? 'bg-blue-600 text-white shadow-md'
-                    : 'bg-white text-gray-700 hover:bg-blue-50 hover:text-blue-600 border border-gray-200'
-                }`}
-              >
-                {tag}
-              </button>
-            ))}
+          <div className={`${showTagsOnMobile ? 'max-h-64' : 'max-h-0 md:max-h-none'} overflow-y-auto md:overflow-visible transition-all duration-300 ease-in-out md:max-h-none`}>
+            <div className="flex flex-wrap gap-2 mb-2">
+              {allTags.map((tag) => (
+                <Link
+                  key={tag}
+                  to={`/${TAG_TO_SLUG[tag]}`}
+                  onClick={() => trackTagClick(tag)}
+                  className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-sm font-medium transition-all ${
+                    selectedTags.includes(tag)
+                      ? 'bg-blue-600 text-white shadow-md'
+                      : 'bg-white text-gray-700 hover:bg-blue-50 hover:text-blue-600 border border-gray-200'
+                  }`}
+                >
+                  {tag}
+                </Link>
+              ))}
+            </div>
           </div>
+          
         </div>
-        
-        {/* 暂时注释掉图片数量显示，因为网站图片太少 */}
-        {/* <div className="mt-4 text-sm text-gray-500">
-          {t('foundImages', { count: filteredImages.length })}
-        </div> */}
-      </div>
+      )}
 
       {/* Image Grid - 响应式网格 */}
       <main className="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
