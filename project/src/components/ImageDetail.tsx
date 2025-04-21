@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { ArrowDown, X, Check } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Helmet } from 'react-helmet';
@@ -17,6 +17,7 @@ export function ImageDetail({ onClose }: ImageDetailProps) {
   const { t } = useTranslation();
   const { slug } = useParams<{ slug?: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const [selectedStyle, setSelectedStyle] = useState<ImageStyle>('transparent');
   const [imageLoaded, setImageLoaded] = useState(false);
 
@@ -148,7 +149,7 @@ export function ImageDetail({ onClose }: ImageDetailProps) {
     if (onClose) {
       onClose();
     }
-    navigate('/');
+    navigate(-1);
   };
 
   const handleDownload = async (e: React.MouseEvent) => {
