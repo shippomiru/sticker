@@ -1,0 +1,185 @@
+{
+  "timestamp": "2025-04-21 17:15:53",
+  "images": [
+    {
+      "filename": "kara-eads-EbLX7oRo4vI-unsplash.jpg",
+      "original_size_kb": 818.86,
+      "method1": {
+        "size_kb": 2093.54,
+        "compression_ratio": -155.66,
+        "processing_time_s": 19.09,
+        "ssim": 94.16
+      },
+      "method2": {
+        "size_kb": 2093.54,
+        "compression_ratio": -155.66,
+        "processing_time_s": 19.66,
+        "ssim": 94.16
+      }
+    },
+    {
+      "filename": "annie-spratt-fbAnIjhrOL4-unsplash.jpg",
+      "original_size_kb": 290.75,
+      "method1": {
+        "size_kb": 722.02,
+        "compression_ratio": -148.33,
+        "processing_time_s": 5.37,
+        "ssim": 96.33
+      },
+      "method2": {
+        "size_kb": 722.02,
+        "compression_ratio": -148.33,
+        "processing_time_s": 5.48,
+        "ssim": 96.33
+      }
+    },
+    {
+      "filename": "kyaw-tun-I2cMOSMmAvA-unsplash.jpg",
+      "original_size_kb": 1252.01,
+      "method1": {
+        "size_kb": 2265.81,
+        "compression_ratio": -80.97,
+        "processing_time_s": 14.58,
+        "ssim": 93.94
+      },
+      "method2": {
+        "size_kb": 2265.81,
+        "compression_ratio": -80.97,
+        "processing_time_s": 14.83,
+        "ssim": 93.94
+      }
+    },
+    {
+      "filename": "faye-cornish-Bq3N2OoEMCE-unsplash.jpg",
+      "original_size_kb": 1207.18,
+      "method1": {
+        "size_kb": 3476.16,
+        "compression_ratio": -187.96,
+        "processing_time_s": 4.81,
+        "ssim": 88.84
+      },
+      "method2": {
+        "size_kb": 3476.16,
+        "compression_ratio": -187.96,
+        "processing_time_s": 5.03,
+        "ssim": 88.84
+      }
+    },
+    {
+      "filename": "oriento-AWkMRde9BmU-unsplash.jpg",
+      "original_size_kb": 1645.09,
+      "method1": {
+        "size_kb": 2881.89,
+        "compression_ratio": -75.18,
+        "processing_time_s": 14.69,
+        "ssim": 91.06
+      },
+      "method2": {
+        "size_kb": 2881.89,
+        "compression_ratio": -75.18,
+        "processing_time_s": 15.15,
+        "ssim": 91.06
+      }
+    },
+    {
+      "filename": "anca-gabriela-zosin-HNN8RgbVgi8-unsplash.jpg",
+      "original_size_kb": 2523.46,
+      "method1": {
+        "size_kb": 6988.61,
+        "compression_ratio": -176.95,
+        "processing_time_s": 17.0,
+        "ssim": 92.4
+      },
+      "method2": {
+        "size_kb": 6988.61,
+        "compression_ratio": -176.95,
+        "processing_time_s": 17.72,
+        "ssim": 92.4
+      }
+    },
+    {
+      "filename": "flavia-bon-Sw-tMGNlU3o-unsplash.jpg",
+      "original_size_kb": 553.6,
+      "method1": {
+        "size_kb": 1466.65,
+        "compression_ratio": -164.93,
+        "processing_time_s": 3.57,
+        "ssim": 96.18
+      },
+      "method2": {
+        "size_kb": 1466.65,
+        "compression_ratio": -164.93,
+        "processing_time_s": 3.79,
+        "ssim": 96.18
+      }
+    },
+    {
+      "filename": "roonz-nl-vjDbHCjHlEY-unsplash.jpg",
+      "original_size_kb": 1947.19,
+      "method1": {
+        "size_kb": 5393.9,
+        "compression_ratio": -177.01,
+        "processing_time_s": 7.25,
+        "ssim": 94.38
+      },
+      "method2": {
+        "size_kb": 5393.9,
+        "compression_ratio": -177.01,
+        "processing_time_s": 7.37,
+        "ssim": 94.38
+      }
+    },
+    {
+      "filename": "sarah-dorweiler-m2J105CzEAU-unsplash.jpg",
+      "original_size_kb": 1271.74,
+      "method1": {
+        "size_kb": 2634.82,
+        "compression_ratio": -107.18,
+        "processing_time_s": 9.58,
+        "ssim": 96.73
+      },
+      "method2": {
+        "size_kb": 2634.82,
+        "compression_ratio": -107.18,
+        "processing_time_s": 9.58,
+        "ssim": 96.73
+      }
+    },
+    {
+      "filename": "erda-estremera-D1wiHCovGJ0-unsplash.jpg",
+      "original_size_kb": 1400.67,
+      "method1": {
+        "size_kb": 2954.24,
+        "compression_ratio": -110.92,
+        "processing_time_s": 20.68,
+        "ssim": 95.93
+      },
+      "method2": {
+        "size_kb": 2954.24,
+        "compression_ratio": -110.92,
+        "processing_time_s": 20.86,
+        "ssim": 95.93
+      }
+    }
+  ],
+  "summary": {
+    "avg_original_size_kb": 1291.06,
+    "method1": {
+      "avg_size_kb": 3087.76,
+      "avg_compression_ratio": -138.51,
+      "avg_processing_time_s": 11.66,
+      "avg_ssim": 94.0
+    },
+    "method2": {
+      "avg_size_kb": 3087.76,
+      "avg_compression_ratio": -138.51,
+      "avg_processing_time_s": 11.95,
+      "avg_ssim": 94.0
+    },
+    "improvement": {
+      "size_reduction_percent": 0.0,
+      "ssim_diff": 0.0,
+      "time_increase_percent": 2.44
+    }
+  }
+}

@@ -41,7 +41,7 @@ logger = logging.getLogger('unsplash_downloader')
 
 # 配置参数
 KEYWORDS_STATE_FILE = "metadata/keywords_state.json"
-IMAGES_PER_KEYWORD = 200  # 每个关键词目标下载数量
+IMAGES_PER_KEYWORD = 100  # 每个关键词目标下载数量，从200改为100
 BATCH_SIZE = 50  # 每次下载的默认图片数量
 MAX_PER_PAGE = 30  # Unsplash API最大支持每页30张图片
 UNSPLASH_IMAGES_DIR = "unsplash-images"  # 图片存储目录
@@ -121,7 +121,7 @@ def download_images(keyword, timeout=600):
     files_before = count_files_in_batch(batch_dir)
     logger.info(f"下载前批次目录中有 {files_before} 张图片")
     
-    # 加载关键词状态以获取当前页码
+    # 加载关键词状态以获取当前页码和已下载数量
     state = load_keywords_state()
     if "pages" not in state:
         state["pages"] = {k: 1 for k in KEYWORDS}
@@ -130,24 +130,52 @@ def download_images(keyword, timeout=600):
         state["pages"][keyword] = 1
     
     current_page = state["pages"][keyword]
-    total_downloaded_count = 0
+    current_downloaded = state["keywords"].get(keyword, 0)
     
-    # 连续请求两页内容
-    for page_offset in range(2):  # 请求当前页和下一页
+    # 计算还需下载的数量
+    remaining_count = max(0, IMAGES_PER_KEYWORD - current_downloaded)
+    if remaining_count == 0:
+        logger.info(f"关键词 '{keyword}' 已达到目标下载数量 {IMAGES_PER_KEYWORD} 张，无需继续下载")
+        return batch_id, 0
+    
+    # 如果剩余数量小于批次大小，调整本次下载数量
+    count_this_batch = min(BATCH_SIZE, remaining_count)
+    count_per_page = count_this_batch // 2 or 1  # 确保至少为1
+    
+    total_downloaded_count = 0
+    pages_to_request = 2  # 默认请求两页
+    
+    # 如果剩余数量很少，可能只需请求一页
+    if count_this_batch <= MAX_PER_PAGE // 2:
+        pages_to_request = 1
+    
+    # 连续请求页面内容
+    for page_offset in range(pages_to_request):
+        # 如果已经达到了目标，跳过后续页面
+        if total_downloaded_count >= remaining_count:
+            break
+            
         page_to_request = current_page + page_offset
+        
+        # 计算当前页需要下载的数量
+        remaining_for_this_page = remaining_count - total_downloaded_count
+        count_for_this_page = min(count_per_page, remaining_for_this_page)
+        
+        if count_for_this_page <= 0:
+            break
         
         cmd = [
             "python3", "unsplash_workflow.py", 
             "start", 
             "--query", keyword, 
-            "--count", str(BATCH_SIZE // 2),  # 每页请求数量减半，两页合计仍为BATCH_SIZE
+            "--count", str(count_for_this_page),
             "--batch", batch_id,
             "--order-by", "relevant",  # 使用relevant获取相关度最高的图片
             "--per-page", str(MAX_PER_PAGE),  # 使用最大每页数量
             "--page", str(page_to_request)
         ]
         
-        logger.info(f"开始下载关键词 '{keyword}' 的图片 [第{page_offset+1}/2页]，批次 {batch_id}，数量 {BATCH_SIZE // 2}，页码 {page_to_request}")
+        logger.info(f"开始下载关键词 '{keyword}' 的图片 [第{page_offset+1}/{pages_to_request}页]，批次 {batch_id}，数量 {count_for_this_page}，页码 {page_to_request}")
         logger.info(f"使用参数: per_page={MAX_PER_PAGE}, order_by=relevant")
         logger.info(f"执行命令: {' '.join(cmd)}")
         
@@ -164,51 +192,16 @@ def download_images(keyword, timeout=600):
             # 尝试从输出中解析下载数量
             page_downloaded_count = 0
             
-            # 搜索标准输出中的多种可能格式
-            for line in result.stdout.splitlines():
-                # 尝试多种可能的格式
-                if "成功导入:" in line or "成功导入 " in line:
-                    try:
-                        # 第一种格式: 成功导入: XX 张图片
-                        if "成功导入:" in line:
-                            part = line.split("成功导入:")[1]
-                        # 第二种格式: 成功导入 XX 张图片
-                        else:
-                            part = line.split("成功导入 ")[1]
-                            
-                        if "张图片" in part:
-                            num_str = part.split("张图片")[0].strip()
-                            page_downloaded_count = int(num_str)
-                            logger.info(f"解析出下载数量: {page_downloaded_count}")
-                            break
-                    except Exception as e:
-                        logger.warning(f"解析'成功导入'行时出错: {e}, 行内容: {line}")
-                
-                # 导入完成信息格式
-                elif "导入完成:" in line and "成功导入:" in result.stdout:
-                    try:
-                        for detail_line in result.stdout.splitlines():
-                            if "- 成功导入:" in detail_line or "- 成功导入 " in detail_line:
-                                if "- 成功导入:" in detail_line:
-                                    part = detail_line.split("- 成功导入:")[1]
-                                else:
-                                    part = detail_line.split("- 成功导入 ")[1]
-                                    
-                                if "张新图片" in part:
-                                    num_str = part.split("张新图片")[0].strip()
-                                    page_downloaded_count = int(num_str)
-                                    logger.info(f"从导入完成信息中解析出下载数量: {page_downloaded_count}")
-                                    break
-                    except Exception as e:
-                        logger.warning(f"解析'导入完成'部分时出错: {e}")
-            
-            # 如果stdout没有找到，尝试从stderr中查找
-            if page_downloaded_count == 0 and result.stderr:
-                try:
-                    for line in result.stderr.splitlines():
-                        if ("成功导入:" in line or "成功导入 " in line) and "张图片" in line:
+            # 搜索标准输出和标准错误中的多种可能格式
+            for output in [result.stdout, result.stderr]:
+                for line in output.splitlines():
+                    # 尝试多种可能的格式
+                    if "成功导入:" in line or "成功导入 " in line:
+                        try:
+                            # 第一种格式: 成功导入: XX 张图片
                             if "成功导入:" in line:
                                 part = line.split("成功导入:")[1]
+                            # 第二种格式: 成功导入 XX 张图片
                             else:
                                 part = line.split("成功导入 ")[1]
                                 
@@ -217,141 +210,192 @@ def download_images(keyword, timeout=600):
                                 page_downloaded_count = int(num_str)
                                 logger.info(f"从stderr解析出下载数量: {page_downloaded_count}")
                                 break
-                except Exception as e:
-                    logger.warning(f"从stderr解析时出错: {e}")
+                        except Exception as e:
+                            logger.warning(f"解析'成功导入'行时出错: {e}, 行内容: {line}")
+                
+                # 如果已找到下载数量，跳出外层循环
+                if page_downloaded_count > 0:
+                    break
             
-            # 如果上述方法都失败，检查日志文件中最近的导入信息
+            # 如果通常的格式没有找到，尝试从importer日志中解析
             if page_downloaded_count == 0:
+                # 检查unsplash_importer.log最新内容
                 try:
-                    # 检查unsplash_importer.log的最后几行
-                    importer_log = "unsplash_importer.log"
-                    if os.path.exists(importer_log):
-                        with open(importer_log, 'r') as f:
-                            # 读取最后1000个字符，应该足够捕获最近的导入信息
-                            f.seek(0, os.SEEK_END)
-                            pos = f.tell() - 1000 if f.tell() > 1000 else 0
-                            f.seek(pos)
-                            log_tail = f.read()
-                            
-                            for line in log_tail.splitlines():
-                                if "成功导入:" in line and "张新图片" in line:
-                                    part = line.split("成功导入:")[1]
-                                    if "张新图片" in part:
-                                        num_str = part.split("张新图片")[0].strip()
-                                        try:
-                                            page_downloaded_count = int(num_str)
-                                            logger.info(f"从importer日志解析出下载数量: {page_downloaded_count}")
-                                            break
-                                        except ValueError:
-                                            continue
+                    with open("unsplash_importer.log", "r") as f:
+                        log_content = f.readlines()[-50:]  # 读取最后50行
+                        for line in log_content:
+                            if "成功导入" in line and "张图片" in line:
+                                try:
+                                    parts = line.split("成功导入")[1].split("张图片")[0].strip()
+                                    page_downloaded_count = int(parts)
+                                    logger.info(f"从importer日志解析出下载数量: {page_downloaded_count}")
+                                    break
+                                except:
+                                    pass
                 except Exception as e:
-                    logger.warning(f"尝试从日志文件解析时出错: {e}")
+                    logger.warning(f"读取importer日志失败: {e}")
             
-            # 累加本页下载的数量
+            # 更新总下载数量
             total_downloaded_count += page_downloaded_count
+            
+            # 更新下一页码
+            state["pages"][keyword] = page_to_request + 1
             logger.info(f"已完成页码 {page_to_request} 的请求，下载了 {page_downloaded_count} 张图片")
             
-            # 如果这一页没有下载到任何图片，可能到达了结尾或者遇到了API限制，结束循环
+            # 如果当前页没有下载到图片，可能是已经到达最后一页
             if page_downloaded_count == 0:
                 logger.info(f"页码 {page_to_request} 未下载到图片，结束当前请求循环")
+                # 跳过下一个页码，尝试更远的页码
+                state["pages"][keyword] = page_to_request + 2
                 break
             
         except subprocess.TimeoutExpired:
             logger.error(f"下载操作超时（超过{timeout}秒）")
+            # 将页码加2以避免卡在超时页面
+            state["pages"][keyword] = page_to_request + 2
+            logger.info(f"更新页码: 下次将使用页码 {state['pages'][keyword]}")
             break
-        except subprocess.CalledProcessError as e:
-            logger.error(f"下载失败: {e}")
-            if e.stderr:
-                logger.error(f"错误输出: {e.stderr}")
-            break
+            
         except Exception as e:
-            logger.error(f"下载过程中发生异常: {str(e)}")
+            logger.error(f"执行命令时出错: {e}")
             break
+        
+        # 保存当前状态以记录页码
+        save_keywords_state(state)
     
-    # 更新页码到最后请求的页面之后，避免重复请求
-    state["pages"][keyword] = current_page + 2  # 无论请求了多少页，下次都从后面两页开始
+    # 更新关键词状态
+    state = load_keywords_state()  # 重新加载，确保获取最新状态
+    state["keywords"][keyword] = current_downloaded + total_downloaded_count
+    state["total_downloaded"] = state.get("total_downloaded", 0) + total_downloaded_count
+    state["last_run"] = datetime.datetime.now().isoformat()
+    
     logger.info(f"更新页码: 下次将使用页码 {state['pages'][keyword]}")
     save_keywords_state(state)
     
-    # 如果通过解析文本获取的下载数量为0，尝试通过文件计数确定实际下载的数量
-    if total_downloaded_count == 0:
-        files_after = count_files_in_batch(batch_dir)
-        actual_downloaded = files_after - files_before
-        if actual_downloaded > 0:
-            logger.info(f"通过文件计数检测到实际下载了 {actual_downloaded} 张图片")
-            total_downloaded_count = actual_downloaded
-    
     logger.info(f"下载完成，本次共成功获取 {total_downloaded_count} 张图片")
+    
     return batch_id, total_downloaded_count
+
+def print_download_summary(state):
+    """打印下载状态摘要"""
+    # 获取当前关键词
+    current_index = state["current_index"]
+    if current_index >= len(KEYWORDS):
+        current_index = len(KEYWORDS) - 1
+    
+    current_keyword = KEYWORDS[current_index]
+    
+    # 获取当前批次
+    batch_id = get_current_batch_id()
+    
+    # 获取最近下载增量（通过比较total_downloaded）
+    total_downloaded = state["total_downloaded"]
+    
+    logger.info("=== 下载状态摘要 ===")
+    logger.info(f"当前关键词: {current_keyword} ({current_index+1}/{len(KEYWORDS)})")
+    logger.info(f"当前批次: {batch_id}")
+    
+    if "last_total" in state:
+        recent_increment = total_downloaded - state["last_total"]
+        logger.info(f"本次新增: {recent_increment} 张图片")
+    else:
+        logger.info(f"本次新增: {0} 张图片")
+    
+    logger.info(f"累计下载: {total_downloaded} 张图片")
+    
+    # 如果有页码信息，显示
+    if "pages" in state and state["pages"].get(current_keyword):
+        logger.info(f"下次页码: {state['pages'][current_keyword]}")
+    
+    logger.info("各关键词下载状态:")
+    
+    # 计算每个关键词的下载状态
+    for keyword in KEYWORDS:
+        downloaded = state["keywords"].get(keyword, 0)
+        percentage = (downloaded / IMAGES_PER_KEYWORD) * 100
+        
+        # 确定状态标签
+        if downloaded >= IMAGES_PER_KEYWORD:
+            status = "[完成]"
+        elif keyword == current_keyword:
+            status = "[当前]"
+        else:
+            status = "[等待]"
+        
+        next_page = state["pages"].get(keyword, 1)
+        page_info = f"- 下次页码: {next_page}" if next_page else ""
+        
+        logger.info(f"{status} {keyword}: {downloaded}/{IMAGES_PER_KEYWORD} 张图片 ({percentage:.1f}%) {page_info}")
+    
+    # 保存当前总数，用于下次计算增量
+    state["last_total"] = total_downloaded
+    save_keywords_state(state)
+
+def should_continue_keyword(state, keyword):
+    """检查是否应该继续下载当前关键词的图片"""
+    downloaded = state["keywords"].get(keyword, 0)
+    return downloaded < IMAGES_PER_KEYWORD
 
 def main():
     """主函数"""
-    # 解析命令行参数
-    parser = argparse.ArgumentParser(description='Unsplash关键词图片下载器')
-    parser.add_argument('--timeout', type=int, default=600, help='下载超时时间(秒) (默认: 600)')
+    parser = argparse.ArgumentParser(description="Unsplash关键词图片下载器")
+    parser.add_argument("--timeout", type=int, default=600, help="下载超时时间（秒）")
     args = parser.parse_args()
     
     timeout = args.timeout
-    
     logger.info(f"开始运行，超时时间 {timeout} 秒")
     
     # 加载关键词状态
     state = load_keywords_state()
     
-    # 检查当前关键词是否已下载完成
+    # 获取当前关键词索引和关键词
     current_index = state["current_index"]
     if current_index >= len(KEYWORDS):
-        logger.info("所有关键词都已处理完毕")
+        logger.info("所有关键词都已完成下载！")
         return
     
     current_keyword = KEYWORDS[current_index]
-    current_downloaded = state["keywords"].get(current_keyword, 0)
     
-    # 如果当前关键词已下载完成，移动到下一个关键词
-    if current_downloaded >= IMAGES_PER_KEYWORD:
-        logger.info(f"关键词 '{current_keyword}' 已下载 {current_downloaded} 张图片，已达到目标数量")
-        state["current_index"] = current_index + 1
-        save_keywords_state(state)
+    # 检查当前关键词是否已完成
+    if not should_continue_keyword(state, current_keyword):
+        # 更新索引到下一个未完成的关键词
+        next_index = current_index
+        for i, keyword in enumerate(KEYWORDS[current_index:], start=current_index):
+            if should_continue_keyword(state, keyword):
+                next_index = i
+                break
         
-        # 递归调用自身，处理下一个关键词
-        main()
-        return
+        # 如果找到了下一个要处理的关键词
+        if next_index != current_index:
+            state["current_index"] = next_index
+            current_index = next_index
+            current_keyword = KEYWORDS[current_index]
+            logger.info(f"关键词 '{KEYWORDS[current_index-1]}' 已完成，切换到下一个关键词 '{current_keyword}'")
+            save_keywords_state(state)
+        else:
+            # 所有关键词都已完成
+            logger.info("所有关键词都已完成下载！")
+            save_keywords_state(state)
+            return
     
-    # 下载图片
-    batch_id, downloaded_count = download_images(current_keyword, timeout=timeout)
+    # 获取当前批次ID
+    batch_id = get_current_batch_id()
     
-    # 重新加载状态，以确保获取最新的页码信息
+    # 执行下载
+    _, downloaded_count = download_images(current_keyword, timeout=timeout)
+    
+    # 重新加载状态以获取最新信息
     state = load_keywords_state()
     
-    # 更新状态
-    state["keywords"][current_keyword] = current_downloaded + downloaded_count
-    state["total_downloaded"] += downloaded_count
-    state["last_run"] = datetime.datetime.now().isoformat()
-    
-    # 如果当前关键词已下载完成，移动到下一个关键词
-    if state["keywords"][current_keyword] >= IMAGES_PER_KEYWORD:
-        logger.info(f"关键词 '{current_keyword}' 已下载完成，共 {state['keywords'][current_keyword]} 张图片")
+    # 检查是否下载完成
+    if not should_continue_keyword(state, current_keyword):
+        # 更新到下一个关键词
         state["current_index"] = current_index + 1
-    
-    # 保存状态
-    save_keywords_state(state)
+        logger.info(f"关键词 '{current_keyword}' 已达到目标下载数量，下次将处理下一个关键词")
+        save_keywords_state(state)
     
     # 打印状态摘要
-    logger.info("=== 下载状态摘要 ===")
-    logger.info(f"当前关键词: {current_keyword} ({current_index+1}/{len(KEYWORDS)})")
-    logger.info(f"当前批次: {batch_id}")
-    logger.info(f"下次页码: {state['pages'][current_keyword]}")
-    logger.info(f"本次新增: {downloaded_count} 张图片")
-    logger.info(f"累计下载: {state['total_downloaded']} 张图片")
-    
-    # 打印所有关键词的下载状态
-    logger.info("各关键词下载状态:")
-    for i, kw in enumerate(KEYWORDS):
-        status = "[当前]" if i == current_index else "[完成]" if state["keywords"].get(kw, 0) >= IMAGES_PER_KEYWORD else "[等待]"
-        downloaded = state["keywords"].get(kw, 0)
-        percentage = round(downloaded * 100 / IMAGES_PER_KEYWORD, 1)
-        next_page = state["pages"].get(kw, 1)
-        logger.info(f"{status} {kw}: {downloaded}/{IMAGES_PER_KEYWORD} 张图片 ({percentage}%) - 下次页码: {next_page}")
+    print_download_summary(state)
 
 if __name__ == "__main__":
     main() 

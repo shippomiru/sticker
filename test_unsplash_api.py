@@ -23,7 +23,7 @@ from datetime import datetime
 
 # 设置 Unsplash API 访问密钥
 # 请替换为您的实际访问密钥，或设置环境变量 UNSPLASH_ACCESS_KEY
-UNSPLASH_ACCESS_KEY = os.environ.get('UNSPLASH_ACCESS_KEY', 'UNexRajSsADsyMXrFwKf9UJmNryJOohrFXpJoRwqR_8')
+UNSPLASH_ACCESS_KEY = os.environ.get('UNSPLASH_ACCESS_KEY', 'MPDVfNtM7TXWbLYKyLfa3D_LID216wlyqKLhpcaB5hU')
 
 # API 基础 URL
 UNSPLASH_API_URL = 'https://api.unsplash.com'

@@ -37,7 +37,7 @@ logging.basicConfig(
 logger = logging.getLogger('unsplash_importer')
 
 # 配置 Unsplash API
-UNSPLASH_ACCESS_KEY = os.environ.get('UNSPLASH_ACCESS_KEY', 'UNexRajSsADsyMXrFwKf9UJmNryJOohrFXpJoRwqR_8')
+UNSPLASH_ACCESS_KEY = os.environ.get('UNSPLASH_ACCESS_KEY', 'MPDVfNtM7TXWbLYKyLfa3D_LID216wlyqKLhpcaB5hU')
 UNSPLASH_API_URL = 'https://api.unsplash.com'
 
 # 配置目录和文件路径
